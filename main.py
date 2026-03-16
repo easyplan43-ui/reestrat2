@@ -1,5 +1,6 @@
 # changes made 16:40
 #changes made in 17:05 by me
+# from web oblako made 18:19
 import sys, os
 from PyQt6.QtWidgets import QApplication, QDialog
 from gui_golov_wind import LoginWindow, MainWindow
