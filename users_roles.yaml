@@ -1,0 +1,17 @@
+roles:           # В цьому файлі я вказую яка група із AD належить до якої ролі в цій програмі, тобто якщо ти щось поміняв в OU AD тоді треба 
+  bychalt_role:         # role1 in this application -  Prosto pereglad      # міняти і в цьому файлі
+    - "bychalt"        # Tobto taky role of applic як simple_view має виконувати AD корист з такими AD групами: bychalt, prodazi,...... 
+    - "fin_chief"                   #  OU=vpnobserv groups,OU=groups for specprograms,DC=videoservaillance,DC=com
+  sklad_role:      # role2   in this application   -  Zapovnena kartochok, mista, naymenyvanja tovary, kontragentu
+    - "sklad"
+    - "ekobezpeka"
+    - "zakypku"
+    - "prodazi"
+  admin_role:
+    - "admin_vpnobs"
+  zakypiv_role:
+    - "zakypku"
+  prodaz_role:
+    - "prodazi"  
+  kadru_role:
+    - "kadru"

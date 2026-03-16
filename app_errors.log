@@ -1,0 +1,9 @@
+2026-03-12 03:22:22 - ERROR - [LogCheckMainConn] - Перевищено кількість спроб входу для користувача: nikolay.lavrov
+2026-03-12 16:27:17 - ERROR - [LogCheckMainConn] - Error LDAP of connection to domain controler: ldap://cd01.videoservaillance.com: invalid server address
+2026-03-12 16:28:40 - ERROR - [LogCheckMainConn] - Error LDAP of connection to domain controler: ldap://cd01.videoservaillance.com: invalid server address
+2026-03-12 17:04:35 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом:
+e:\python_programs\proj_reestrat\users_roles.yaml
+2026-03-12 17:16:20 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом:\ne:\python_programs\proj_reestrat\users_roles.yaml
+2026-03-12 17:22:07 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом: e:\python_programs\proj_reestrat\users_roles.yaml
+2026-03-12 17:27:13 - ERROR - [LogCheckConfFileConn] - Файл формування підменю не знайдено за шляхом: e:\python_programs\proj_reestrat\submenu_buttons.json
+2026-03-12 17:28:08 - ERROR - [LogCheckConfFileConn] - Помилка у структурі файлу формування підменю: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)

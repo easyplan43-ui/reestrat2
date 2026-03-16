@@ -1,0 +1,55 @@
+{
+    "Продажі": {
+        "Замовлення клієнтів": "OrderClients",
+        "Рахунки на оплату": "RakhynokOplaty",
+        "Видаткові накладні": "VudatNakladni",
+        "Повернення від клієнтів": "ClientsReturn",
+        "Прайс-листи": "PriceList"
+    },
+    "Закупівлі": {
+        "Замовлення постачальникам": "OrderSupplier",
+        "Надходження товарів": "PruxidTovary",
+        "Рахунки постачальників": "RakhynokSupplier",
+        "Повернення постачальникам": "ReturnSupplier"
+    },
+    "Склад": {
+        "Залишки товарів": "ZalushTovary",
+        "Переміщення": "Peremichena",
+        "Інвентаризація": "Inventariz",
+        "Списання": "Spusanja",
+        "Оприбуткування": "Oprubytkyv",
+        "Внесення товару": "InsertTovar"
+    },
+    "Персонал": {
+        "Прийом на роботу": "PruyomRoboty",
+        "Кадрові переміщення": "KadroviChange",
+        "Звільнення": "Resignation",
+        "Графіки роботи": "ScheduleWork",
+        "Особисті картки": "IndividCards"
+    },
+    "Зарплата": {
+        "Нарахування зарплати": "NarakhSalary",
+        "Відомості в банк": "VidomostBank",
+        "Податки та внески": "PodatkuVnesku",
+        "Табель обліку часу": "OblikTime"
+    },
+    "Звіти": {
+        "Оборотна відомість": "OborotnaVidom",
+        "Аналіз продажів": "AnalisProdaz",
+        "Звіт по залишках": "ZvitZalushku",
+        "Рух коштів": "PykhKoshtiv",
+        "Дебіторська заборгованість": "DebitZaborgov"
+},
+    "Налаштування": {
+        "Користувачі": "Users",
+        "Організації": "Organizations",
+        "Валюти": "Currency",
+        "Обмін даними": "ChangeData",
+        "Довідники": "Dovidnuku"
+    },
+    "Адміністратору": {
+        "Змінити": "Edit",
+        "Видалити": "Delete",
+        "Добавити": "Add"
+    }
+}
