@@ -19,7 +19,7 @@ class DBConnector:
     def __enter__(self):     #     Устанавливает соединение с базой данных
         try:
             self.connection = pyodbc.connect(self.connection_string, timeout = 4)   # Ссылка на объект соединения (connection), ето "труба" к базе данных.
-            return self.connection
+            return self.connection  # Повертає обєкт зєднання
         except pyodbc.Error as ex:
             sqlstate = ex.args[0]  # получаем стандартизированный 5-символьный код ошибки, который сообщает база данных
             if sqlstate == '28000':
@@ -34,5 +34,27 @@ class DBConnector:
         if self.connection:
             self.connection.close()
 
+class SelectCategory:
+    def __init__(self, name_table):
+        self.name_table = name_table
 
-      
+    def get_category(self):
+        query = f"SELECT Catname FROM {self.name_table} WHERE Parentid IS NULL;"    
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.  
+
+        
+
+#ekzemp_category = SelectCategory('hardware.Categories')  # Створюємо екземпляр класу, передаючи назву таблиці
+#category = ekzemp_category.get_category()
+#list_categor = [item[0] for item in category]  # Перетворюємо з списка кортежів в список
+#print (list_categor)
+#if category:
+   # for categ in category:
+   #     print(f"Знайдена категорія: {categ}")
+#else:        
+   # print("Корінняві категорії не знайдені.")
+       
