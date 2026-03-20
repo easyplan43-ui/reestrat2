@@ -1,17 +1,22 @@
-class Variab:
-    def __init__(self, name_table, id):
-        self.name_table = name_table
-        self.id = id
+class TableManager:
+    def __init__(self, table):
+        self.table = table
+    def process_table(self):
+        """Метод, принимающий только таблицу."""
+        print(f"Обработка таблицы: {self.table}")
+        return len(self.table)
 
-    def meth1(self):
-        # Метод вже має доступ до self.name_table, передавати його не треба
-        print(f"Працюю з таблицею: {self.name_table}")
+    def process_with_var(self, var1):
+        """Метод, принимающий таблицу и переменную."""
+        print(f"Обработка таблицы {self.table} с параметром: {var1}")
+        return f"{self.table}_{var1}"
 
-    def meth2(self, new_id):
-        # Тут ми передаємо додатковий аргумент new_id
-        print(f"Старий id: {self.id}, Новий id: {new_id}")
+# --- Пример вызова ---
+data = [1, 2, 3]
+manager = TableManager(data)
 
-# В іншому класі або місці коду:
-obj = Variab("table4", 1) # Створюємо екземпляр
-obj.meth1()               # Виклик без аргументів (візьме "table4" з init)
-obj.meth2(4)              # Виклик з одним аргументом (id)
+# 1. Вызов метода с одним аргументом
+manager.process_table()
+
+# 2. Вызов метода с двумя аргументами
+manager.process_with_var("v1")

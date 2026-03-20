@@ -37,8 +37,8 @@ class DBConnector:
 class SelectCategory:  #  Вибирає категорії товарів з таблиці Categories
     def __init__(self, name_table):
         self.name_table = name_table
-
-    def get_category_and_id(self): # Отримуємо назву категоріїї товару і її id
+  
+    def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id
         query = f"SELECT Catid, Catname FROM {self.name_table} WHERE Parentid IS NULL;"    
         with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
@@ -46,10 +46,11 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
         # автоматично викличеться __exit__ для закриття з'єднання.  
     
-    
-        
+    def get_subcategory_by_id(self, id):   #  Отримуємо назви підкатегорій товару за вказаним id
+        query = f"SELECT Catname FROM {self.name_table} WHERE Parentid = {id};"
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.          
 
-#ekzemp_category = SelectCategory('hardware.Categories')  # Створюємо екземпляр класу, передаючи назву таблиці
-#category = ekzemp_category.get_category()
-#list_categor = [item[0] for item in category]  # Перетворюємо з списка кортежів в список
-#print (list_categor)
