@@ -38,8 +38,8 @@ class SelectCategory:  #  Вибирає категорії товарів з т
     def __init__(self, name_table):
         self.name_table = name_table
   
-    def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id
-        query = f"SELECT Catid, Catname FROM {self.name_table} WHERE Parentid IS NULL;"    
+    def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id і її tag щоб знати яку таблицю використ: чи Process_det чи Memory_det, ...
+        query = f"SELECT Catid, Catname, tag FROM {self.name_table} WHERE Parentid IS NULL;"    
         with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
             cursor.execute(query)     # Виконуємо запит через курсор
@@ -54,3 +54,10 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
         # автоматично викличеться __exit__ для закриття з'єднання.          
 
+    def get_name_stovpciv_table(self):  # Отримуємо назви всіх стовпців в таблиці через звернення до системних таблиць sys
+        query = f"SELECT name AS Column_Name FROM sys.columns WHERE object_id = OBJECT_ID('{self.name_table}');" 
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.    

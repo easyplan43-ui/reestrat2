@@ -246,6 +246,7 @@ class InsertTovar(QMainWindow):
             QPushButton:hover { background-color: #34495e; }
             QTableWidget { background-color: white; border: 1px solid #ddd; }
         """)
+        self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
         central_widget = QWidget()  # Головний віджет
         self.setCentralWidget(central_widget)
         layout = QHBoxLayout(central_widget) # Горизонтальний розподіл: Форма | Таблиця
@@ -257,9 +258,9 @@ class InsertTovar(QMainWindow):
         self.ekzemp_category = SelectCategory('hardware.Categories')  # Створюємо екземпляр класу, передаючи назву таблиці
         category = self.ekzemp_category.get_category_and_id()   # отримуєм назви категорій і її id з таблиці типу: [(3, 'Процесори'), (7, 'Накопичувачі'), (12, 'Оперативна память'), (15, 'Материнська плата')]
         self.vupad_spusok.clear()    #  Очищуємо віджет перед оновленням (щоб категорії не дублювалися)
-        self.vupad_spusok.addItem("Виберіть категорію товара", 0)   # Додаємо дефолтний елемент першим до випадаючого списку
-        for cat_id, cat_name in category: # category = [(3, 'Процесори'), (7, 'Накопичувачі'), (12, 'Оперативна память'), (15, 'Материнська плата')]
-            self.vupad_spusok.addItem(cat_name, cat_id)   # # addItem(видимий_текст, приховані_дані)
+        self.vupad_spusok.addItem("Виберіть категорію товара", (0, None))   # Додаємо дефолтний елемент першим до випадаючого списку
+        for cat_id, cat_name, self.cat_tag in category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
+            self.vupad_spusok.addItem(cat_name, (cat_id, self.cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
         self.vupad_spusok.currentIndexChanged.connect(self.show_sub_vupad_spusok)  # Коли корист вибирає якийсь елем у випадаючому списку, показуємо sub список під головн випад списком
         left_panel_ins_data.addWidget(self.vupad_spusok)  # Випадаюч список додаємо до лівої панелі
        
@@ -273,11 +274,13 @@ class InsertTovar(QMainWindow):
         self.forma_vvody.hide()
         self.text_forma_vvody = QFormLayout(self.forma_vvody)  # QFormLayout - клас який вирівн віджети у 2 стовпці: зліва - надпис, справа - поле вводу
         left_panel_ins_data.addWidget(self.forma_vvody)  # Форму вводу додаємо до лівої панелі
-        #self.btn_addto_sklad = QPushButton("ДОДАТИ НА СКЛАД")    # Кнопка під формою
-        #self.btn_addto_sklad.clicked.connect(self.add_to_preview)
-        #left_panel_ins_data.addWidget(self.btn_addto_sklad)   # Кнопку додаемо до лівої панелі
+        
+        self.btn_addto_sklad = QPushButton("ДОДАТИ НА СКЛАД")    # ------------------ Кнопка під формою ---------------------------
+        self.btn_addto_sklad.hide()
+        self.btn_addto_sklad.clicked.connect(self.add_to_preview)
+        left_panel_ins_data.addWidget(self.btn_addto_sklad)   # Кнопку додаемо до лівої панелі
         left_panel_ins_data.addStretch() # Притиснути все вгору
-        # -------------------------  ПРАВА ПАНЕЛЬ (Попередній перегляд залишків в таблиці) -----------------------------
+        # -----------------------------------------  ПРАВА ПАНЕЛЬ (Попередній перегляд залишків в таблиці) -----------------------------------------------
         right_panel_table = QVBoxLayout()
         right_panel_table.addWidget(QLabel("📋 ОСТАННІ ВВЕДЕННЯ"))  # Створює віджет (елемент інтерфейсу), який відображає текст або зображення.     
         self.table = QTableWidget(0, 4)  # Создает виджет с 0 начальными строками и 4 столбцами
@@ -291,7 +294,7 @@ class InsertTovar(QMainWindow):
     
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
         self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку
-        select_id = self.vupad_spusok.currentData()  # currentData(): Метод, который вертає прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
+        select_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который вертає прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
         sub_category = self.ekzemp_category.get_subcategory_by_id(select_id) # за вказаним id виводимо підкатегоріїї, які є дітьми від категорії з цим id
         if sub_category:   #  Якщо користувач вибрав любу з категорій окрім категорії по замовчуванню 
             self.sub_vupad_spusok.clear()    #  Очищуємо віджет перед оновленням 
@@ -302,21 +305,28 @@ class InsertTovar(QMainWindow):
             self.sub_vupad_spusok.blockSignals(False) # Вмикаємо сигнали назад
             self.forma_vvody.hide()     # Ховаємо форму, якщо вона була відкрита раніше для іншого товару
             self.sub_vupad_spusok.show()
-        else:
-            self.sub_vupad_spusok.hide()       #    Ховаємо, якщо підкатегорій немає
+        else:       #  Якщо користувач вибрав категорії по замовчуванню 
+            self.sub_vupad_spusok.hide()       #    Ховаємо випадаючий список, якщо підкатегорій немає
+            self.forma_vvody.hide()            #    Ховаємо форму вводу, якщо підкатегорій немає
+            self.btn_addto_sklad.hide()        #    Ховаємо кнопку під формою, якщо підкатегорій немає
        
     def show_forma_vvody_danux(self, index):
-        if  index < 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), нічого не робимо
+        #self.cat_tag
+        if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
             self.forma_vvody.hide()
+            self.btn_addto_sklad.hide()
             return
         while self.text_forma_vvody.count():  # Доки кількість елементів у макеті більша за нуль
             item = self.text_forma_vvody.takeAt(0)  # Видаляє посилання на перший елемент (з індексом 0) з вашого макета (layout)
             if item.widget():
                 item.widget().deleteLater()    #   Чи є цей елемент віджетом, якщо так то Видали цей об'єкт
+        list_stovpciv = self.ekzemp_category.get_name_stovpciv_table('hardware.Products')   
+        print(list_stovpciv)     
         self.dict = {"Назва": QLineEdit(), "Кількість": QLineEdit(), "Ціна": QLineEdit()}        
         for label, widget in self.dict.items():
              self.text_forma_vvody.addRow(f"{label}:", widget)  # Створ новий рядок у формі: 
         self.forma_vvody.show()
+        self.btn_addto_sklad.show()
     
     def add_to_preview(self):
         """Імітація запису в БД та відображення в таблиці."""
