@@ -54,10 +54,33 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
         # автоматично викличеться __exit__ для закриття з'єднання.          
 
-    def get_name_stovpciv_table(self):  # Отримуємо назви всіх стовпців в таблиці через звернення до системних таблиць sys
-        query = f"SELECT name AS Column_Name FROM sys.columns WHERE object_id = OBJECT_ID('{self.name_table}');" 
+    def get_name_all_stovpciv_table(self, table = None ):  # Отримуємо назви всіх стовпців в таблиці через звернення до системних таблиць sys
+        if table:     # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
+            table2 = table
+        else:
+            table2 = self.name_table
+        query = f"SELECT name AS Column_Name FROM sys.columns WHERE object_id = OBJECT_ID('{table2}');" 
         with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
             cursor.execute(query)     # Виконуємо запит через курсор
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
         # автоматично викличеться __exit__ для закриття з'єднання.    
+
+    def get_name_necces_stovpciv_table(self, table = None ): # Отримуємо назви НЕ всіх стовпців в таблиці, пропускаємо поля AUTO_INCREMENT 
+          # тобто id, пропускаємо поле Created з властивістю , які заповнюються системною  функцією GETDATE(), також пропускаємо Foreign Key
+        if table:     # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
+            table2 = table
+        else:
+            table2 = self.name_table 
+        query = f"""SELECT c.name FROM sys.columns c
+                    JOIN sys.types t ON c.user_type_id = t.user_type_id
+                    WHERE c.object_id = OBJECT_ID('{table2}') AND c.is_identity = 0
+                    AND t.name NOT IN ('datetime', 'datetime2', 'timestamp') 
+                    AND NOT EXISTS ( SELECT 1 FROM sys.foreign_key_columns fkc    -- де  SELECT 1 - це підтверд строки в яка задов умову
+                    WHERE fkc.parent_object_id = c.object_id                      -- ефектив щоб сервер не вертав дані стовпців 
+                    AND fkc.parent_column_id = c.column_id) """
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.     

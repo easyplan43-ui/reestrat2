@@ -311,7 +311,7 @@ class InsertTovar(QMainWindow):
             self.btn_addto_sklad.hide()        #    Ховаємо кнопку під формою, якщо підкатегорій немає
        
     def show_forma_vvody_danux(self, index):
-        #self.cat_tag
+        #print(self.cat_tag)
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
             self.forma_vvody.hide()
             self.btn_addto_sklad.hide()
@@ -320,11 +320,36 @@ class InsertTovar(QMainWindow):
             item = self.text_forma_vvody.takeAt(0)  # Видаляє посилання на перший елемент (з індексом 0) з вашого макета (layout)
             if item.widget():
                 item.widget().deleteLater()    #   Чи є цей елемент віджетом, якщо так то Видали цей об'єкт
-        list_stovpciv = self.ekzemp_category.get_name_stovpciv_table('hardware.Products')   
-        print(list_stovpciv)     
-        self.dict = {"Назва": QLineEdit(), "Кількість": QLineEdit(), "Ціна": QLineEdit()}        
-        for label, widget in self.dict.items():
+        list_stovpciv = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Products')   # list kortegiv tupy: [('Prodid',), ('Category_catid',), ('Artukyl',), ('Nazva_tov',), ('Description',), ('Kilkist',), ('Price',), ('Created',)]
+        self.dict_stovp_qlineedit = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
+        self.dict_stovp_qlineedit2 = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
+        if self.cat_tag == 'cpu':
+            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Proccess_det')
+            for stovpec in list_stovpciv2: 
+               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
+               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
+        elif  self.cat_tag == 'ram':  
+            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Memory_det')
+            for stovpec in list_stovpciv2: 
+               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
+               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
+        elif  self.cat_tag == 'mainboard': 
+            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Mainboard_det')
+            for stovpec in list_stovpciv2: 
+               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
+               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних   
+        elif self.cat_tag == 'storage': 
+            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Storage_det')
+            for stovpec in list_stovpciv2: 
+               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
+               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних 
+        for stovpec in list_stovpciv: 
+             col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
+             self.dict_stovp_qlineedit[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
+        for label, widget in self.dict_stovp_qlineedit.items():
              self.text_forma_vvody.addRow(f"{label}:", widget)  # Створ новий рядок у формі: 
+        for label, widget in self.dict_stovp_qlineedit2.items():
+             self.text_forma_vvody.addRow(f"{label}:", widget)  # Створ новий рядок у формі:     
         self.forma_vvody.show()
         self.btn_addto_sklad.show()
     
