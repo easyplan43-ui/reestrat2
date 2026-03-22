@@ -323,7 +323,7 @@ class InsertTovar(QMainWindow):
         list_stovpciv = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Products')   # list kortegiv tupy: [('Prodid',), ('Category_catid',), ('Artukyl',), ('Nazva_tov',), ('Description',), ('Kilkist',), ('Price',), ('Created',)]
         self.dict_stovp_qlineedit = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
         self.dict_stovp_qlineedit2 = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
-        if self.cat_tag == 'cpu':
+        if self.cat_tag == 'cpu':  # some commenteria from sofiashered
             list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Proccess_det')
             for stovpec in list_stovpciv2: 
                col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
