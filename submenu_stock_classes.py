@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QC
                              QPushButton, QHeaderView, QFrame, QAbstractItemView, QMessageBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
+from constants import *
 from conn_to_db import DBConnector, SelectCategory # клас для підключення до бд
 
 # Тільки класи для реалізації підменю "Склад". Незабудь новий створюваний клас відмітити в файлі: string_to_class
@@ -241,7 +242,7 @@ class InsertTovar(QMainWindow):
         self.setStyleSheet("""
             QMainWindow { background-color: #f4f4f9; }
             QLabel { font-size: 14px; color: #333; font-weight: bold; }
-            QLineEdit, QComboBox { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: white; }
+            QLineEdit, QComboBox { padding: 5px; border: 1px solid #ccc; border-radius: 4px; background: white; }
             QPushButton { background-color: #2c3e50; color: white; padding: 10px; font-weight: bold; border-radius: 4px; }
             QPushButton:hover { background-color: #34495e; }
             QTableWidget { background-color: white; border: 1px solid #ddd; }
@@ -255,7 +256,7 @@ class InsertTovar(QMainWindow):
         left_panel_ins_data.addWidget(QLabel("📦 КАТЕГОРІЯ"))  # Створює віджет (елемент інтерфейсу), який відображає текст або зображення. 
         
         self.vupad_spusok = QComboBox()   # Создает новый экземпляр  ---------- «Головн випадаючий список»  ------------------------
-        self.ekzemp_category = SelectCategory('hardware.Categories')  # Створюємо екземпляр класу, передаючи назву таблиці
+        self.ekzemp_category = SelectCategory(Table_category)  # Створюємо екземпляр класу, передаючи назву таблиці
         category = self.ekzemp_category.get_category_and_id()   # отримуєм назви категорій і її id з таблиці типу: [(3, 'Процесори'), (7, 'Накопичувачі'), (12, 'Оперативна память'), (15, 'Материнська плата')]
         self.vupad_spusok.clear()    #  Очищуємо віджет перед оновленням (щоб категорії не дублювалися)
         self.vupad_spusok.addItem("Виберіть категорію товара", (0, None))   # Додаємо дефолтний елемент першим до випадаючого списку
@@ -277,7 +278,7 @@ class InsertTovar(QMainWindow):
         
         self.btn_addto_sklad = QPushButton("ДОДАТИ НА СКЛАД")    # ------------------ Кнопка під формою ---------------------------
         self.btn_addto_sklad.hide()
-        self.btn_addto_sklad.clicked.connect(self.add_to_preview)
+        self.btn_addto_sklad.clicked.connect(self.insert_in_db_add_to_preview)  # При нажаті на кнопку вставляєм дані які ввів користув в полях вводу в бд і робимо попередній перегляд в таблиці справа
         left_panel_ins_data.addWidget(self.btn_addto_sklad)   # Кнопку додаемо до лівої панелі
         left_panel_ins_data.addStretch() # Притиснути все вгору
         # -----------------------------------------  ПРАВА ПАНЕЛЬ (Попередній перегляд залишків в таблиці) -----------------------------------------------
@@ -289,8 +290,8 @@ class InsertTovar(QMainWindow):
         right_panel_table.addWidget(self.table)
         
         # Додаємо панелі в головний лейаут
-        layout.addLayout(left_panel_ins_data, 1)  # 1 частина ширини
-        layout.addLayout(right_panel_table, 3) # 2 частини ширини
+        layout.addLayout(left_panel_ins_data, 2)  # 1 частина ширини
+        layout.addLayout(right_panel_table, 4) # 2 частини ширини
     
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
         self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку
@@ -311,7 +312,6 @@ class InsertTovar(QMainWindow):
             self.btn_addto_sklad.hide()        #    Ховаємо кнопку під формою, якщо підкатегорій немає
        
     def show_forma_vvody_danux(self, index):
-        #print(self.cat_tag)
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
             self.forma_vvody.hide()
             self.btn_addto_sklad.hide()
@@ -320,54 +320,54 @@ class InsertTovar(QMainWindow):
             item = self.text_forma_vvody.takeAt(0)  # Видаляє посилання на перший елемент (з індексом 0) з вашого макета (layout)
             if item.widget():
                 item.widget().deleteLater()    #   Чи є цей елемент віджетом, якщо так то Видали цей об'єкт
-        list_stovpciv = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Products')   # list kortegiv tupy: [('Prodid',), ('Category_catid',), ('Artukyl',), ('Nazva_tov',), ('Description',), ('Kilkist',), ('Price',), ('Created',)]
-        self.dict_stovp_qlineedit = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
-        self.dict_stovp_qlineedit2 = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit
-        if self.cat_tag == 'cpu':  # some commenteria from sofiashered
-            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Proccess_det')
-            for stovpec in list_stovpciv2: 
-               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
-               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
-        elif  self.cat_tag == 'ram':  
-            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Memory_det')
-            for stovpec in list_stovpciv2: 
-               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
-               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
-        elif  self.cat_tag == 'mainboard': 
-            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Mainboard_det')
-            for stovpec in list_stovpciv2: 
-               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
-               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних   
-        elif self.cat_tag == 'storage': 
-            list_stovpciv2 = self.ekzemp_category.get_name_necces_stovpciv_table('hardware.Storage_det')
-            for stovpec in list_stovpciv2: 
-               col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
-               self.dict_stovp_qlineedit2[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних 
-        for stovpec in list_stovpciv: 
-             col_name = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Prodid, Nazva_tov, Artukyl, .....
-             self.dict_stovp_qlineedit[col_name] = QLineEdit()  # Для кожного ключа col_name в словаре создаем однорядкове поле вводу даних
-        for label, widget in self.dict_stovp_qlineedit.items():
-             self.text_forma_vvody.addRow(f"{label}:", widget)  # Створ новий рядок у формі: 
-        for label, widget in self.dict_stovp_qlineedit2.items():
-             self.text_forma_vvody.addRow(f"{label}:", widget)  # Створ новий рядок у формі:     
-        self.forma_vvody.show()
-        self.btn_addto_sklad.show()
-    
-    def add_to_preview(self):
-        """Імітація запису в БД та відображення в таблиці."""
-        row = self.table.rowCount()
-        self.table.insertRow(row)
-        
-        name = self.dict["Назва"].text()
-        cat = self.vupad_spusok.currentText()
-        qty = self.dict["Кількість"].text()
-        price = self.dict["Ціна"].text()
+            
+        dict_stovp_datatype = {}  #  Словник для головн таблиці  
+        dict_stovp_datatype2 = {} #  Словник для залежної таблиці: Memory, Proccessor, Storage
+        dict_stovp_datatype = self.formyem_slovnuk(Table_main_product) # [('Artukyl', 'nvarchar', 30), ('Nazva_tov', 'nvarchar', 100), ('Description', 'nvarchar', -1), ('Kilkist', 'int', None), ('Price', 'decimal', None)]
+       
+        korteg_table_name = self.ekzemp_category.get_name_table_by_tag(Table_tag, self.cat_tag) # по cat_tag шукаємо назву відпов таблиці, вертає кортеж типу: [('hardware.Storage_detail',)]
+        table_name =  korteg_table_name[0][0]  # беремо 1-ий елемент кортежу -  hardware.Storage_det
+        dict_stovp_datatype2 = self.formyem_slovnuk(table_name)   # [('socket', 'nvarchar', 30), ('cores', 'int', None), ('threads', 'int', None), ('frequency', 'decimal', None), ('watt', 'int', None)]
+        print(type(dict_stovp_datatype))
+        print(type(dict_stovp_datatype2))
+        self.dict_stovp_qlineedit = {}   # Створюємо словник типу: назва_стовпця : новий об'єкт QLineEdit    
+        #for stovpec in list_stovpciv_full: 
+         #    widget =  QLineEdit()   #  создаем однорядкове поле вводу даних
+          #   stovpec = stovpec[0]   # Дістаємо назви стовпців  з кортежу типу:  Nazva_tov, Artukyl, Description,  Kilkist, .....
+          #   korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних
+          #   ukr_namestovp = korteg_ukr_namestovp[0][0] # беремо 1-ий елемент кортежу 
+          #   self.dict_stovp_qlineedit[stovpec] = widget  # Для кожного ключа stovpec в словаре создаем однорядкове поле вводу даних, де dict = <PyQt6.QtWidgets.QLineEdit object at 0x00000215F4F7E350>         
+          #   self.text_forma_vvody.addRow(f"{ukr_namestovp}:", widget)  # Створ новий рядок у формі: назва - поле вводу
+        #self.forma_vvody.show()
+        #self.btn_addto_sklad.show()
 
-        self.table.setItem(row, 0, QTableWidgetItem(name))
-        self.table.setItem(row, 1, QTableWidgetItem(cat))
-        self.table.setItem(row, 2, QTableWidgetItem(qty))
-        self.table.setItem(row, 3, QTableWidgetItem(f"{price} грн"))
+    def formyem_slovnuk(self, table_name):
+        list_stovpciv_type = self.ekzemp_category.get_neccess_stovpci_and_type(table_name)
+        #dict_stovp_datatype = {} 
+        #for stovp in list_stovpciv_type:
+           #col_name = stovp[0]  # беремо 1-ий елемент кортежу
+           #dict_stovp_datatype[col_name] = list_stovpciv_type  
+        return  list_stovpciv_type
+    
+    def insert_in_db_add_to_preview(self):   # Вставляє дані в дві таблиці Products і іншу табл залежно від tag
+        dict_dani_z_formu = {}
+        for stovpec, widget in self.dict_stovp_qlineedit.items():
+            users_data = widget.text().strip()   # Отримуємо дані які ввів користувач із кожного поля вводу
+            dict_dani_z_formu[stovpec] = users_data    # Записуємо в словник {назва_стовпця: значення яке ввів користувач}
+        print(dict_dani_z_formu)
+        
+        
+
+
+
+
+
+
+        #self.table.setItem(row, 0, QTableWidgetItem(name))
+        #self.table.setItem(row, 1, QTableWidgetItem(cat))
+        #self.table.setItem(row, 2, QTableWidgetItem(qty))
+        #self.table.setItem(row, 3, QTableWidgetItem(f"{price} грн"))
         
         # Очищення полів
-        for inp in self.dict.values(): inp.clear()
+        #for inp in self.dict.values(): inp.clear()
 
