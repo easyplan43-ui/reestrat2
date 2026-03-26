@@ -248,7 +248,9 @@ class InsertTovar(QMainWindow):
             QPushButton:hover { background-color: #34495e; }
             QTableWidget { background-color: white; border: 1px solid #ddd; }
         """)
+        self.table_name_depend = None # Це імя залежної таблиці від табл Products, наприклад це може бути табл: Memory, Storage, Proccessor,..
         self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
+        self.dict_stovp_type_size = {}   # пустий словник типу: назва_стовпця : об'єкт QLineEdit, тип_даних, розмір_або_точність 
         central_widget = QWidget()  # Головний віджет
         self.setCentralWidget(central_widget)
         layout = QHBoxLayout(central_widget) # Горизонтальний розподіл: Форма | Таблиця
@@ -279,7 +281,7 @@ class InsertTovar(QMainWindow):
         
         self.btn_addto_sklad = QPushButton("ДОДАТИ НА СКЛАД")    # ------------------ Кнопка під формою ---------------------------
         self.btn_addto_sklad.hide()
-        self.btn_addto_sklad.clicked.connect(self.receive_users_data)  # При нажаті на кнопку вставляєм дані які ввів користув в полях вводу в бд і робимо попередній перегляд в таблиці справа
+        self.btn_addto_sklad.clicked.connect(self.receive_users_data_check_empty)  # При нажаті на кнопку отримуєм дані від користув, перевіряєм їх на правильність, на пусті поля
         left_panel_ins_data.addWidget(self.btn_addto_sklad)   # Кнопку додаемо до лівої панелі
         left_panel_ins_data.addStretch() # Притиснути все вгору
         # -----------------------------------------  ПРАВА ПАНЕЛЬ (Попередній перегляд залишків в таблиці) -----------------------------------------------
@@ -324,18 +326,18 @@ class InsertTovar(QMainWindow):
             
         list_stovp_datatype = self.formyem_slovnuk(Table_main_product) # [('Artukyl', 'nvarchar', 30), ('Nazva_tov', 'nvarchar', 100), ('Description', 'nvarchar', -1), ('Kilkist', 'int', None), ('Price', 'decimal', None)]
         korteg_table_name = self.ekzemp_category.get_name_table_by_tag(Table_tag, self.cat_tag) # по cat_tag шукаємо назву відпов таблиці, вертає кортеж типу: [('hardware.Storage_detail',)]
-        table_name =  korteg_table_name[0][0]  # беремо 1-ий елемент кортежу -  hardware.Storage_det
-        list_stovp_datatype2 = self.formyem_slovnuk(table_name)   # [('socket', 'nvarchar', 30), ('cores', 'int', None), ('threads', 'int', None), ('frequency', 'decimal', None), ('watt', 'int', None)]
+        self.table_name_depend =  korteg_table_name[0][0]  # беремо 1-ий елемент кортежу -  hardware.Storage_det
+        list_stovp_datatype2 = self.formyem_slovnuk(self.table_name_depend)   # [('socket', 'nvarchar', 30), ('cores', 'int', None), ('threads', 'int', None), ('frequency', 'decimal', None), ('watt', 'int', None)]
         self.dict_stovp_type_size = {}   # Створюємо словник типу: назва_стовпця : об'єкт QLineEdit, тип_даних, розмір_або_точність    
         list_stovpciv_full = list_stovp_datatype + list_stovp_datatype2  # Обєднуємо списки отримані з таблиці Products і з таблиці залежної, напр, Memory, Storage,....
         
         for stovpec, datatype, size in list_stovpciv_full: # Формується словник dict_stovp_type_size[stovpec] + наповнюєт. текст укр момою при формі вводу
-            widget =  QLineEdit()   #  создаем однорядкове поле вводу даних
+            pole_vvody =  QLineEdit()   #  создаем однорядкове поле вводу даних
             korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних
             ukr_namestovp = korteg_ukr_namestovp[0][0]    # беремо 1-ий елемент кортежу 
-            InputValidator.apply(widget, datatype, size)  # Викликаємо клас для накладання обмежень при вводі даних користув в форму вводу
-            self.dict_stovp_type_size[stovpec] = (widget, datatype, size)  #    Формується словник dict_stovp_type_size[stovpec] типу:  <PyQt6.QtWidgets.QLineEdit object at 0x00000162CB4898B0>, 'nvarchar', 30)      
-            self.text_forma_vvody.addRow(f"{ukr_namestovp}:", widget)  # Створ новий рядок у формі: назва - поле вводу
+            InputValidator.check_entered_data(pole_vvody, datatype, size)  # Виклик клас (декоратор методу) для накладання обмежень при вводі даних користув в форму вводу
+            self.dict_stovp_type_size[stovpec] = ( pole_vvody, datatype, size)  #    Формується словник dict_stovp_type_size[stovpec] типу:  <PyQt6.QtWidgets.QLineEdit object at 0x00000162CB4898B0>, 'nvarchar', 30)      
+            self.text_forma_vvody.addRow(f"{ukr_namestovp}:",  pole_vvody)  # Створ новий рядок у формі: назва - поле вводу
         self.forma_vvody.show()
         self.btn_addto_sklad.show()
 
@@ -343,23 +345,41 @@ class InsertTovar(QMainWindow):
         list_stovpciv_type = self.ekzemp_category.get_neccess_stovpci_and_type(table_name)
         return  list_stovpciv_type
     
-    def receive_users_data(self):   # Вставляє дані в дві таблиці Products і іншу табл залежно від tag
+    def receive_users_data_check_empty(self):   # Отримує користув дані з форми, перевіряє на пусті поля,
         dict_dani_z_formu = {}
-        for stovpec, (widget, datatype, size) in self.dict_stovp_type_size.items():
-            users_data = widget.text().strip()   # Отримуємо дані які ввів користувач із кожного поля вводу
-            print(f"Стовпець: {stovpec}")
-            print(f"Введено: {users_data}")
-            print(f"Тип: {datatype}")
-            print(f"Розмір: {size}")
-            print("-" * 30)
+        is_valid = True
+        for stovpec, (pole_vvody, datatype, size) in self.dict_stovp_type_size.items():
+            users_data = pole_vvody.text().strip()   # Отримуємо дані які ввів користувач із кожного поля вводу
+            if not users_data:   # Якщо користувач нічого не ввів
+                is_valid = False
+                break
+        if not is_valid:
+            QMessageBox.warning(self, "Попередження", "Всі поля мають бути заповнені!") 
+        else: 
+            QMessageBox.information(self, "Успіх", "Форму успішно заповнено.")
+            self.insert_in_tables()   # Вставляємо перевірені дані від користув в таблиці
 
-
-
-        #self.table.setItem(row, 0, QTableWidgetItem(name))
-        #self.table.setItem(row, 1, QTableWidgetItem(cat))
-        #self.table.setItem(row, 2, QTableWidgetItem(qty))
-        #self.table.setItem(row, 3, QTableWidgetItem(f"{price} грн"))
-        
-        # Очищення полів
-        #for inp in self.dict.values(): inp.clear()
-
+    def insert_in_tables(self):
+        list_korteg_stovpciv_bez_id = self.ekzemp_category.get_all_stovp_bez_identity_datetime(Table_main_product) # для головн таблиці отримуєм список стовпців, які підставляємо в INSERT
+        list_stovp_bez_id = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
+        print(list_stovp_bez_id)
+        query = f"INSERT INTO {Table_main_product} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * len(list_korteg_stovpciv_bez_id))})"
+        #query = f"""BEGIN TRY
+         #              BEGIN TRANSACTION; 
+         #                DECLARE @LastInsId INT; 
+         #                INSERT INTO {Table_main_product} ([Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price])
+         #                    VALUES (5, 'CPU-AMD-13900K', N'AMD Core i9-13900K', N'24 ядра, 32 потоки', 4, 39.7);
+         #                SET @LastInsId = SCOPE_IDENTITY();
+         #                INSERT INTO {self.table_name_depend} ([proccid], [socket], [cores], [threads], [frequency], [watt])
+         #                    VALUES(@LastInsId, 'LGA1700', 24, 32, 3.0, 125);
+         #              COMMIT TRANSACTION;
+         #           END TRY
+         #           BEGIN CATCH
+         #             IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+         #             PRINT 'Error pru dodavani : ' + ERROR_MESSAGE();
+         #           END CATCH"""
+        #with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+        #    cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+        #    cursor.execute(query)     # Виконуємо запит через курсор
+        #    return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        ## автоматично викличеться __exit__ для закриття з'єднання.  

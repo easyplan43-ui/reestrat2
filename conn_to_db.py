@@ -96,7 +96,8 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             table2 = table
         else:
             table2 = self.name_table 
-        query = f"""SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS 
+        query = f"""SELECT COLUMN_NAME, DATA_TYPE,  COALESCE(CHARACTER_MAXIMUM_LENGTH, 
+          COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'precision')) as [Length] FROM INFORMATION_SCHEMA.COLUMNS 
                    WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{table2}'
                        AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')
@@ -113,17 +114,18 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
         # автоматично викличеться __exit__ для закриття з'єднання. 
 
-    def get_decimal_prec_scale(self, table = None, column_name = None):    # вертае в типу даних decimal/numerical precision and scale, наприклад decimal(5,2)
+    def get_all_stovp_bez_identity_datetime(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і datetime
+        # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime 
         if table:     # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
             table2 = table
         else:
             table2 = self.name_table 
-        query = f"SELECT NUMERIC_PRECISION, NUMERIC_SCALE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = {table2} AND COLUMN_NAME = ?";
+        query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                   WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{table2}'
+                       AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
+                       AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
         with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
-            cursor.execute(query, (column_name,))     # Виконуємо запит через курсор і передаємо tag_table  як кортеж  
+            cursor.execute(query)     # Виконуємо запит через курсор і передаємо tag_table  як кортеж  
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
-        # автоматично викличеться __exit__ для закриття з'єднання.  
-
-
-
+        # автоматично викличеться __exit__ для закриття з'єднання.                 
