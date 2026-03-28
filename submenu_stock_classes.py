@@ -250,7 +250,9 @@ class InsertTovar(QMainWindow):
         """)
         self.table_name_depend = None # Це імя залежної таблиці від табл Products, наприклад це може бути табл: Memory, Storage, Proccessor,..
         self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
-        self.dict_stovp_type_size = {}   # пустий словник типу: назва_стовпця : об'єкт QLineEdit, тип_даних, розмір_або_точність 
+        self.dict_stovp_type_size = {}   # пустий словник типу: назва_стовпця : об'єкт QLineEdit, тип_даних, size 
+        self.cat_id = None      # id вибраної КАТЕГОРІЇ    з табл Categories, яке користув вибрав в main випадаючому списку, наприклад: Процесори, Диски,....
+        self.subcat_id = None   # id вибраної ПІДкатегорії з табл Categories, яке користув вибрав в sub випадаючому списку, наприклад: Intel Core, AMD Ryzen
         central_widget = QWidget()  # Головний віджет
         self.setCentralWidget(central_widget)
         layout = QHBoxLayout(central_widget) # Горизонтальний розподіл: Форма | Таблиця
@@ -263,8 +265,8 @@ class InsertTovar(QMainWindow):
         category = self.ekzemp_category.get_category_and_id()   # отримуєм назви категорій і її id з таблиці типу: [(3, 'Процесори'), (7, 'Накопичувачі'), (12, 'Оперативна память'), (15, 'Материнська плата')]
         self.vupad_spusok.clear()    #  Очищуємо віджет перед оновленням (щоб категорії не дублювалися)
         self.vupad_spusok.addItem("Виберіть категорію товара", (0, None))   # Додаємо дефолтний елемент першим до випадаючого списку
-        for cat_id, cat_name, self.cat_tag in category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
-            self.vupad_spusok.addItem(cat_name, (cat_id, self.cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
+        for cat_id, cat_name, cat_tag in category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
+            self.vupad_spusok.addItem(cat_name, (cat_id, cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
         self.vupad_spusok.currentIndexChanged.connect(self.show_sub_vupad_spusok)  # Коли корист вибирає якийсь елем у випадаючому списку, показуємо sub список під головн випад списком
         left_panel_ins_data.addWidget(self.vupad_spusok)  # Випадаюч список додаємо до лівої панелі
        
@@ -298,13 +300,13 @@ class InsertTovar(QMainWindow):
     
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
         self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку
-        select_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который вертає прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
-        sub_category = self.ekzemp_category.get_subcategory_by_id(select_id) # за вказаним id виводимо підкатегоріїї, які є дітьми від категорії з цим id
+        self.cat_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который вертає прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
+        sub_category = self.ekzemp_category.get_subcategory_by_id(self.cat_id) # за вказаним id виводимо id і підкатегоріїї, які є дітьми від категорії з цим id
         if sub_category:   #  Якщо користувач вибрав любу з категорій окрім категорії по замовчуванню 
             self.sub_vupad_spusok.clear()    #  Очищуємо віджет перед оновленням 
             self.sub_vupad_spusok.addItem("Виберіть підкатегорію товара", 0)   # Додаємо дефолтний елемент першим до випадаючого списку
-            for cat_name in sub_category: # іsubcategory = [('SSD SATA',), ('SSD M2 Nvme',), ('SSD SAS',), ('HDD',)]
-                self.sub_vupad_spusok.addItem(cat_name[0])  # Додаємо до sub випадаючого списку елементи
+            for cat_id, cat_name in sub_category: # sub_category = [('SSD SATA',), ('SSD M2 Nvme',), ('SSD SAS',), ('HDD',)]
+                self.sub_vupad_spusok.addItem(cat_name, cat_id)  # Додаємо до sub випадаючого списку елементи
             self.sub_vupad_spusok.setCurrentIndex(0)   # Форма вводу з'явиться лише тоді, коли ви перемкнетеся з "Виберіть підкатегорію товара" на реальний товар
             self.sub_vupad_spusok.blockSignals(False) # Вмикаємо сигнали назад
             self.forma_vvody.hide()     # Ховаємо форму, якщо вона була відкрита раніше для іншого товару
@@ -323,7 +325,8 @@ class InsertTovar(QMainWindow):
             item = self.text_forma_vvody.takeAt(0)  # Видаляє посилання на перший елемент (з індексом 0) з вашого макета (layout)
             if item.widget():
                 item.widget().deleteLater()    #   Чи є цей елемент віджетом, якщо так то Видали цей об'єкт
-            
+        self.subcat_id = self.sub_vupad_spusok.currentData()   # id вибраного елемента з табл Categories в sub випадаючому списку
+        
         list_stovp_datatype = self.formyem_slovnuk(Table_main_product) # [('Artukyl', 'nvarchar', 30), ('Nazva_tov', 'nvarchar', 100), ('Description', 'nvarchar', -1), ('Kilkist', 'int', None), ('Price', 'decimal', None)]
         korteg_table_name = self.ekzemp_category.get_name_table_by_tag(Table_tag, self.cat_tag) # по cat_tag шукаємо назву відпов таблиці, вертає кортеж типу: [('hardware.Storage_detail',)]
         self.table_name_depend =  korteg_table_name[0][0]  # беремо 1-ий елемент кортежу -  hardware.Storage_det
@@ -331,6 +334,7 @@ class InsertTovar(QMainWindow):
         self.dict_stovp_type_size = {}   # Створюємо словник типу: назва_стовпця : об'єкт QLineEdit, тип_даних, розмір_або_точність    
         list_stovpciv_full = list_stovp_datatype + list_stovp_datatype2  # Обєднуємо списки отримані з таблиці Products і з таблиці залежної, напр, Memory, Storage,....
         
+        self.dict_stovp_type_size.clear()  # очищаємо словник, якщо буде наприклад оновлення форми
         for stovpec, datatype, size in list_stovpciv_full: # Формується словник dict_stovp_type_size[stovpec] + наповнюєт. текст укр момою при формі вводу
             pole_vvody =  QLineEdit()   #  создаем однорядкове поле вводу даних
             korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних
@@ -346,40 +350,58 @@ class InsertTovar(QMainWindow):
         return  list_stovpciv_type
     
     def receive_users_data_check_empty(self):   # Отримує користув дані з форми, перевіряє на пусті поля,
-        dict_dani_z_formu = {}
         is_valid = True
+        list_all_data_user = []   #  В цей список буде поміщено всі дані які ввів користувач в форму вводу
+        portion_list = []    # в бд будемо вносити дані користув е всі одразу а порціями
+        limit_row = 5    # тобто весь список який ввів корист ділимо на порції по 5 штук, заносимо в бд дані
         for stovpec, (pole_vvody, datatype, size) in self.dict_stovp_type_size.items():
             users_data = pole_vvody.text().strip()   # Отримуємо дані які ввів користувач із кожного поля вводу
             if not users_data:   # Якщо користувач нічого не ввів
                 is_valid = False
                 break
+            list_all_data_user.append(users_data) 
         if not is_valid:
             QMessageBox.warning(self, "Попередження", "Всі поля мають бути заповнені!") 
         else: 
             QMessageBox.information(self, "Успіх", "Форму успішно заповнено.")
-            self.insert_in_tables()   # Вставляємо перевірені дані від користув в таблиці
+            self.insert_in_tables(list_all_data_user)
+            #for one_element in list_all_data_user:
+             #   portion_list.append(one_element)
+             #   if len(portion_list) >= limit_row:
+             #       self.insert_in_tables(portion_list)   # Передаємо порцію зі всього списку даних, які ввів користув в функц вставки даних в бд
+             #       portion_list.clear()
+            #if portion_list:    # Це так звана страховка коли в списку після 10 записів лишится наприклад 4 елента  і умова  if len(portion_list) >= limit_row: не спрацює
+             #   self.insert_in_tables(portion_list)      # Передаємо порцію зі всього списку даних, які ввів користув, але ця порція < 5 елементів 
 
-    def insert_in_tables(self):
+    def insert_in_tables(self, list_users_data):
         list_korteg_stovpciv_bez_id = self.ekzemp_category.get_all_stovp_bez_identity_datetime(Table_main_product) # для головн таблиці отримуєм список стовпців, які підставляємо в INSERT
-        list_stovp_bez_id = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
-        print(list_stovp_bez_id)
-        query = f"INSERT INTO {Table_main_product} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * len(list_korteg_stovpciv_bez_id))})"
-        #query = f"""BEGIN TRY
-         #              BEGIN TRANSACTION; 
-         #                DECLARE @LastInsId INT; 
-         #                INSERT INTO {Table_main_product} ([Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price])
-         #                    VALUES (5, 'CPU-AMD-13900K', N'AMD Core i9-13900K', N'24 ядра, 32 потоки', 4, 39.7);
-         #                SET @LastInsId = SCOPE_IDENTITY();
-         #                INSERT INTO {self.table_name_depend} ([proccid], [socket], [cores], [threads], [frequency], [watt])
-         #                    VALUES(@LastInsId, 'LGA1700', 24, 32, 3.0, 125);
-         #              COMMIT TRANSACTION;
-         #           END TRY
-         #           BEGIN CATCH
-         #             IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-         #             PRINT 'Error pru dodavani : ' + ERROR_MESSAGE();
-         #           END CATCH"""
-        #with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
-        #    cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
-        #    cursor.execute(query)     # Виконуємо запит через курсор
-        #    return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
-        ## автоматично викличеться __exit__ для закриття з'єднання.  
+        list_stovp_bez_id_maintabl = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
+        list_korteg_all_stovp_depend_tabl = self.ekzemp_category.get_name_all_stovpciv_table(self.table_name_depend) # для залежн табл отримуємо список всіх стовпців
+        list_all_stovp_depend_tabl = ", ".join([f"[{item[0]}]" for item in list_korteg_all_stovp_depend_tabl]) # перетв з списку кортежів в список типу: [memid], [mem_type], [capacity], [speed]
+        kilk_stovp_main_tabl = len(list_korteg_stovpciv_bez_id)   #  Кількість стовпців головн таблиці які потрібно заповнити в запиті INSERT
+        kilk_stovp_depend_tabl = len(list_korteg_all_stovp_depend_tabl)
+        list_users_data.insert(0, self.subcat_id)     # Додаємо id на першу позиц., щоб вставити в табл Products
+        list_dani_main_tabl = list_users_data[:kilk_stovp_main_tabl]  # Зріс, тобто весь список ділимо на список для головн табл
+        list_dani_depend_tabl = list_users_data[kilk_stovp_main_tabl:] # Зріс, тобто список для залежн табл
+        placeholders_depend = "@LastInsId, " + ", ".join(["?"] * (kilk_stovp_depend_tabl - 1))
+        query = f"""BEGIN TRY
+                           BEGIN TRANSACTION; 
+                               DECLARE @LastInsId INT; 
+                               INSERT INTO {Table_main_product} ({list_stovp_bez_id_maintabl}) 
+                                  VALUES ({', '.join(['?'] * kilk_stovp_main_tabl)});
+                               SET @LastInsId = SCOPE_IDENTITY();
+                               INSERT INTO {self.table_name_depend} ({list_all_stovp_depend_tabl}) 
+                                  VALUES ({placeholders_depend});
+                           COMMIT TRANSACTION;
+                        END TRY
+                        BEGIN CATCH
+                           IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+                        END CATCH"""
+        params =  list_dani_main_tabl + list_dani_depend_tabl
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+               cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+               cursor.execute(query, params)     # Виконуємо запит через курсор
+               return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.  
+ 
+       

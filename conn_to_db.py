@@ -47,7 +47,7 @@ class SelectCategory:  #  Вибирає категорії товарів з т
         # автоматично викличеться __exit__ для закриття з'єднання.  
     
     def get_subcategory_by_id(self, id):   #  Отримуємо назви підкатегорій товару за вказаним id
-        query = f"SELECT Catname FROM {self.name_table} WHERE Parentid = {id};"
+        query = f"SELECT Catid, Catname FROM {self.name_table} WHERE Parentid = {id};"
         with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
             cursor.execute(query)     # Виконуємо запит через курсор
