@@ -1,4 +1,5 @@
 import sys
+import pyodbc
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit,
                              QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout,
                              QPushButton, QHeaderView, QFrame, QAbstractItemView, QMessageBox)
@@ -272,7 +273,7 @@ class InsertTovar(QMainWindow):
        
         self.sub_vupad_spusok = QComboBox()   # -------  Створюємо sub випадаючий список відразу, але ховаємо його --------
         self.sub_vupad_spusok.hide()
-        self.sub_vupad_spusok.currentIndexChanged.connect(self.show_forma_vvody_danux)  # Коли корист вибирає якийсь елем у sub списку - показуємо форму вводу даних
+        self.sub_vupad_spusok.currentIndexChanged.connect(self.show_forma_vvody_danux)  # Коли корист вибирає якийсь елем у sub списку - показуємо форму вводу даних і таблицю виводу останіх введених даних користув
         left_panel_ins_data.addWidget(self.sub_vupad_spusok)   #  Випадаюч sub список додаємо до лівої панелі
 
         # ---------------------  Контейнер форми для введення даних в бд ----------------------------------------------
@@ -288,10 +289,11 @@ class InsertTovar(QMainWindow):
         left_panel_ins_data.addStretch() # Притиснути все вгору
         # -----------------------------------------  ПРАВА ПАНЕЛЬ (Попередній перегляд залишків в таблиці) -----------------------------------------------
         right_panel_table = QVBoxLayout()
-        right_panel_table.addWidget(QLabel("📋 ОСТАННІ ВВЕДЕННЯ"))  # Створює віджет (елемент інтерфейсу), який відображає текст або зображення.     
-        self.table = QTableWidget(0, 4)  # Создает виджет с 0 начальными строками и 4 столбцами
-        self.table.setHorizontalHeaderLabels(["Товар", "Категорія", "К-сть", "Ціна"]) # зверт до обєкту таблиці і встановл назви стовпців
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch) # режим розтягування шапки таблиці
+        self.ostani_vvedena = QLabel("📋 ОСТАННІ ВВЕДЕННЯ")   # Створює віджет (елемент інтерфейсу), який відображає текст 
+        right_panel_table.addWidget(self.ostani_vvedena)
+        self.ostani_vvedena.hide()
+        self.table = QTableWidget()  # Создает виджет таблиці виводу останньої введеної інфи користувачем
+        self.table.hide()
         right_panel_table.addWidget(self.table)
         
         # Додаємо панелі в головний лейаут
@@ -302,24 +304,31 @@ class InsertTovar(QMainWindow):
         self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку
         self.cat_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который вертає прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
         sub_category = self.ekzemp_category.get_subcategory_by_id(self.cat_id) # за вказаним id виводимо id і підкатегоріїї, які є дітьми від категорії з цим id
-        if sub_category:   #  Якщо користувач вибрав любу з категорій окрім категорії по замовчуванню 
+        if sub_category:   #  Якщо користувач вибрав любу з підкатегорій окрім категорії по замовчуванню 
             self.sub_vupad_spusok.clear()    #  Очищуємо віджет перед оновленням 
             self.sub_vupad_spusok.addItem("Виберіть підкатегорію товара", 0)   # Додаємо дефолтний елемент першим до випадаючого списку
             for cat_id, cat_name in sub_category: # sub_category = [('SSD SATA',), ('SSD M2 Nvme',), ('SSD SAS',), ('HDD',)]
                 self.sub_vupad_spusok.addItem(cat_name, cat_id)  # Додаємо до sub випадаючого списку елементи
             self.sub_vupad_spusok.setCurrentIndex(0)   # Форма вводу з'явиться лише тоді, коли ви перемкнетеся з "Виберіть підкатегорію товара" на реальний товар
             self.sub_vupad_spusok.blockSignals(False) # Вмикаємо сигнали назад
-            self.forma_vvody.hide()     # Ховаємо форму, якщо вона була відкрита раніше для іншого товару
+            self.btn_addto_sklad.hide()        #    Без цього рядка докінця не ховає кнопку при обрані підменю по замовченю
+            self.forma_vvody.hide()            # Ховаємо форму, якщо вона була відкрита раніше для іншого товару
+            self.table.hide()                  # Очищаємо таблицю показу щойно введених даних
+            self.ostani_vvedena.hide()
             self.sub_vupad_spusok.show()
         else:       #  Якщо користувач вибрав категорії по замовчуванню 
             self.sub_vupad_spusok.hide()       #    Ховаємо випадаючий список, якщо підкатегорій немає
             self.forma_vvody.hide()            #    Ховаємо форму вводу, якщо підкатегорій немає
+            self.table.hide()                  #    Ховаємо таблицю показу щойно введених даних
+            self.ostani_vvedena.hide()
             self.btn_addto_sklad.hide()        #    Ховаємо кнопку під формою, якщо підкатегорій немає
        
-    def show_forma_vvody_danux(self, index):
+    def show_forma_vvody_danux(self, index):   #  Виводить на екран форму вводу і таблицю виводу останіх введ даних при виборі ярїсь опції в підменю
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
             self.forma_vvody.hide()
+            self.table.hide()                  #    Ховаємо таблицю показу щойно введених даних
             self.btn_addto_sklad.hide()
+            self.ostani_vvedena.hide()         #    Ховаємо текстову надпись
             return
         while self.text_forma_vvody.count():  # Доки кількість елементів у макеті більша за нуль
             item = self.text_forma_vvody.takeAt(0)  # Видаляє посилання на перший елемент (з індексом 0) з вашого макета (layout)
@@ -335,14 +344,22 @@ class InsertTovar(QMainWindow):
         list_stovpciv_full = list_stovp_datatype + list_stovp_datatype2  # Обєднуємо списки отримані з таблиці Products і з таблиці залежної, напр, Memory, Storage,....
         
         self.dict_stovp_type_size.clear()  # очищаємо словник, якщо буде наприклад оновлення форми
+        list_ukr_namestovp = []            # цей список передав в шабку-заголовок таблиці
         for stovpec, datatype, size in list_stovpciv_full: # Формується словник dict_stovp_type_size[stovpec] + наповнюєт. текст укр момою при формі вводу
             pole_vvody =  QLineEdit()   #  создаем однорядкове поле вводу даних
-            korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних
+            korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних звертаючись до таблиці бд
             ukr_namestovp = korteg_ukr_namestovp[0][0]    # беремо 1-ий елемент кортежу 
+            list_ukr_namestovp.append(ukr_namestovp)  # формую список з україн назв 
             InputValidator.check_entered_data(pole_vvody, datatype, size)  # Виклик клас (декоратор методу) для накладання обмежень при вводі даних користув в форму вводу
             self.dict_stovp_type_size[stovpec] = ( pole_vvody, datatype, size)  #    Формується словник dict_stovp_type_size[stovpec] типу:  <PyQt6.QtWidgets.QLineEdit object at 0x00000162CB4898B0>, 'nvarchar', 30)      
             self.text_forma_vvody.addRow(f"{ukr_namestovp}:",  pole_vvody)  # Створ новий рядок у формі: назва - поле вводу
+        self.table.setColumnCount(len(list_ukr_namestovp))   # Встановлюємо кількість колонок
+        self.table.setHorizontalHeaderLabels(list_ukr_namestovp) # зверт до обєкту таблиці і встановл назви стовпців
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setMinimumSectionSize(100) # наприклад, 100 пікселів
         self.forma_vvody.show()
+        self.ostani_vvedena.show()
+        self.table.show()
         self.btn_addto_sklad.show()
 
     def formyem_slovnuk(self, table_name):    #  За вказан імям таблиці видає список Не всіх [(стовпців, тип_даних, відвед_кілкість_символ)]
@@ -352,8 +369,6 @@ class InsertTovar(QMainWindow):
     def receive_users_data_check_empty(self):   # Отримує користув дані з форми, перевіряє на пусті поля,
         is_valid = True
         list_all_data_user = []   #  В цей список буде поміщено всі дані які ввів користувач в форму вводу
-        portion_list = []    # в бд будемо вносити дані користув е всі одразу а порціями
-        limit_row = 5    # тобто весь список який ввів корист ділимо на порції по 5 штук, заносимо в бд дані
         for stovpec, (pole_vvody, datatype, size) in self.dict_stovp_type_size.items():
             users_data = pole_vvody.text().strip()   # Отримуємо дані які ввів користувач із кожного поля вводу
             if not users_data:   # Якщо користувач нічого не ввів
@@ -363,15 +378,9 @@ class InsertTovar(QMainWindow):
         if not is_valid:
             QMessageBox.warning(self, "Попередження", "Всі поля мають бути заповнені!") 
         else: 
-            QMessageBox.information(self, "Успіх", "Форму успішно заповнено.")
+            #QMessageBox.information(self, "Успіх", "Дані успішно занесені.")
             self.insert_in_tables(list_all_data_user)
-            #for one_element in list_all_data_user:
-             #   portion_list.append(one_element)
-             #   if len(portion_list) >= limit_row:
-             #       self.insert_in_tables(portion_list)   # Передаємо порцію зі всього списку даних, які ввів користув в функц вставки даних в бд
-             #       portion_list.clear()
-            #if portion_list:    # Це так звана страховка коли в списку після 10 записів лишится наприклад 4 елента  і умова  if len(portion_list) >= limit_row: не спрацює
-             #   self.insert_in_tables(portion_list)      # Передаємо порцію зі всього списку даних, які ввів користув, але ця порція < 5 елементів 
+             
 
     def insert_in_tables(self, list_users_data):
         list_korteg_stovpciv_bez_id = self.ekzemp_category.get_all_stovp_bez_identity_datetime(Table_main_product) # для головн таблиці отримуєм список стовпців, які підставляємо в INSERT
@@ -384,7 +393,8 @@ class InsertTovar(QMainWindow):
         list_dani_main_tabl = list_users_data[:kilk_stovp_main_tabl]  # Зріс, тобто весь список ділимо на список для головн табл
         list_dani_depend_tabl = list_users_data[kilk_stovp_main_tabl:] # Зріс, тобто список для залежн табл
         placeholders_depend = "@LastInsId, " + ", ".join(["?"] * (kilk_stovp_depend_tabl - 1))
-        query = f"""BEGIN TRY
+        query = f"""SET NOCOUNT ON;  -- <--- без цього коду Python не сприймає ошибки через THROW
+                        BEGIN TRY
                            BEGIN TRANSACTION; 
                                DECLARE @LastInsId INT; 
                                INSERT INTO {Table_main_product} ({list_stovp_bez_id_maintabl}) 
@@ -396,12 +406,32 @@ class InsertTovar(QMainWindow):
                         END TRY
                         BEGIN CATCH
                            IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+                            THROW;     -- <--- ОБЯЗАТЕЛЬНО: перерве виконання і пробрасывает ошибку в Python
                         END CATCH"""
         params =  list_dani_main_tabl + list_dani_depend_tabl
-        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
-               cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
-               cursor.execute(query, params)     # Виконуємо запит через курсор
-               return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
-        # автоматично викличеться __exit__ для закриття з'єднання.  
+        try:
+            with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+                 cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+                 cursor.execute(query, params)     # Виконуємо запит через курсор
+                 conn.commit()
+            # --------------- Вставка введених даних в таблицу відображення на екранв справа, це не вставка в табл бд -----------------------     
+            kilk_radkiv = self.table.rowCount()   #  возвращает общее количество строк, существующих в таблице на данный момент
+            self.table.insertRow(kilk_radkiv)  # физически создаем новую пустую строку в таблице QTableWidget
+            for nomer_col, data in enumerate(list_users_data[1:]):   # (0, Артикул) (1, Назва товару) (2, Опис) ,...... і пропуск id тому 1:
+                #print(nomer_col, data)
+                item_contain = QTableWidgetItem(str(data))  # Кожне значення завертаємо в спеціальний контейнер, бо інакше не можна закинути текст в табл
+                self.table.setItem(kilk_radkiv, nomer_col, item_contain)  # кладем созданный «контейнер» в конкретную ячейку: індекс_нов_строки, номер_колонки, само упаковане значення
+            self.table.scrollToBottom()    # Опционально: прокрутка к новой записи
+
+            QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
+            for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після успішного весення в бд
+                pole_vvody = self.dict_stovp_type_size[stovpec][0]   #
+                pole_vvody.clear()
+                 # автоматично викличеться __exit__ для закриття з'єднання.  
+        except pyodbc.Error as e:
+            # Этот блок ловить ошибку, которую пробросил THROW из SQL
+            QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {e}")
+        
  
-       
+      
+     

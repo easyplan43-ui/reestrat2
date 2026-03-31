@@ -1,43 +1,62 @@
-import sys
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox
+import pyodbc
 
-class MyForm(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Валідація форми")
-        self.layout = QVBoxLayout()
+# 1. Подготовка данных (собираем плоский список для временной таблицы)
+# Допустим, у вас есть список анкет, где каждая анкета — это один длинный список
+# data_to_insert = [row1, row2, row3, ...]
+data_to_insert = [list_dani_main_tabl + list_dani_depend_tabl for _ in range(100)] 
 
-        # Створюємо список полів для зручної перевірки циклом
-        self.fields = []
-        for i in range(3):
-            line_edit = QLineEdit()
-            self.layout.addWidget(line_edit)
-            self.fields.append(line_edit)
+# Считаем общее кол-во колонок (основная + зависимая)
+total_columns = kilk_stovp_main_tabl + len(list_all_stovp_depend_tabl.split(','))
+placeholders = ", ".join(["?"] * total_columns)
 
-        # Кнопка для перевірки
-        self.btn = QPushButton("Перевірити")
-        self.btn.clicked.connect(self.validate_form)
-        self.layout.addWidget(self.btn)
+conn = pyodbc.connect(your_conn_str)
+cursor = conn.cursor()
+cursor.fast_executemany = True
 
-        self.setLayout(self.layout)
+try:
+    # 2. Создаем временную таблицу в памяти SQL Server
+    # Типы данных (INT, VARCHAR) должны соответствовать вашим реальным колонкам
+    cursor.execute(f"CREATE TABLE #TempData ({list_stovp_bez_id_maintabl}, {list_all_stovp_depend_tabl})")
 
-    def validate_form(self):
-        # Перевіряємо кожне поле: .text() отримує текст, .strip() прибирає пробіли
-        is_valid = True
-        for field in self.fields:
-            if not field.text().strip():
-                is_valid = False
-                break
+    # 3. Записываем ВСЕ данные порциями во временную таблицу
+    chunk_size = 1000
+    for i in range(0, len(data_to_insert), chunk_size):
+        chunk = data_to_insert[i : i + chunk_size]
+        cursor.executemany(f"INSERT INTO #TempData VALUES ({placeholders})", chunk)
 
-        if not is_valid:
-            # Вивід вікна попередження
-            QMessageBox.warning(self, "Попередження", "Всі поля мають бути заповнені!")
-        else:
-            # Повідомлення про успіх
-            QMessageBox.information(self, "Успіх", "Форму успішно заповнено.")
+    # 4. ГЛАВНЫЙ ШАГ: Перенос данных из #TempData в реальные таблицы со связью
+    # Используем OUTPUT, чтобы поймать новые ID из MainTable и сразу вставить в DependTable
+    transfer_sql = f"""
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        -- Таблица для хранения соответствия (Старый уникальный признак -> Новый ID)
+        -- Здесь 'UniqueCol' — это колонка, которая уникальна для каждой анкеты (напр. артикул или имя)
+        DECLARE @InsertedRows TABLE (PrimaryID INT, RowIndex INT);
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MyForm()
-    window.show()
-    sys.exit(app.exec())
+        -- 1. Вставляем в основную таблицу
+        INSERT INTO {Table_main_product} ({list_stovp_bez_id_maintabl})
+        OUTPUT INSERTED.ID, 0 -- Здесь логика связи может зависеть от ваших полей
+        SELECT {list_stovp_bez_id_maintabl} FROM #TempData;
+
+        -- 2. Вставляем в зависимую таблицу (логика зависит от того, как вы связываете строки)
+        -- Если у вас нет явного ключа связи в данных, проще всего делать это через курсор или 
+        -- предварительно сгенерированный ID в Python.
+        
+        INSERT INTO {self.table_name_depend} ({list_all_stovp_depend_tabl})
+        SELECT {list_all_stovp_depend_tabl} FROM #TempData;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+    """
+    
+    # Если связь сложная, проще всего вставить Main, а потом Depend, используя общий ключ (например, артикул)
+    cursor.execute(transfer_sql)
+    conn.commit()
+
+finally:
+    cursor.close()
+    conn.close()
