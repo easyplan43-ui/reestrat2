@@ -7,3 +7,4 @@ e:\python_programs\proj_reestrat\users_roles.yaml
 2026-03-12 17:22:07 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом: e:\python_programs\proj_reestrat\users_roles.yaml
 2026-03-12 17:27:13 - ERROR - [LogCheckConfFileConn] - Файл формування підменю не знайдено за шляхом: e:\python_programs\proj_reestrat\submenu_buttons.json
 2026-03-12 17:28:08 - ERROR - [LogCheckConfFileConn] - Помилка у структурі файлу формування підменю: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+2026-04-01 23:51:21 - ERROR - [LogCheckMainConn] - Error LDAP of connection to domain controler: ldap://cd01.videoservaillance.com: invalid server address
