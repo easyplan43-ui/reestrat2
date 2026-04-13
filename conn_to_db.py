@@ -128,4 +128,44 @@ class SelectCategory:  #  Вибирає категорії товарів з т
             cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
             cursor.execute(query)     # Виконуємо запит через курсор і передаємо tag_table  як кортеж  
             return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
-        # автоматично викличеться __exit__ для закриття з'єднання.                 
+        # автоматично викличеться __exit__ для закриття з'єднання.       
+
+    def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
+                # Не всіх стовпців, тобто виключаємо 1) id з властив identity,  
+        if table:     # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
+            table2 = table
+        else:
+            table2 = self.name_table 
+        query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+                   WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{table2}'
+                       AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
+                       AND COLUMN_NAME NOT IN (
+                            SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
+                               JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
+                               ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
+                               AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
+                               WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                               AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{table2}'); """
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор і передаємо tag_table  як кортеж  
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.                    
+
+    def get_foreignkey(self, table = None):    # Отримуємо 1) - назву стовпця з властивістью Foreign key і 2) - назву стовпця на який 1 стовпець зсилається
+        if table:     # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
+            table2 = table
+        else:
+            table2 = self.name_table 
+        query = f"""SELECT COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName,
+                COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferencedColumnName
+                FROM sys.foreign_keys AS f INNER JOIN 
+                sys.foreign_key_columns AS fc 
+                ON f.object_id = fc.constraint_object_id
+                WHERE f.parent_object_id = OBJECT_ID('{table2}')
+                ORDER BY ColumnName;  """  
+        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+            cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+            cursor.execute(query)     # Виконуємо запит через курсор і передаємо tag_table  як кортеж  
+            return cursor.fetchall()  # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів   
+        # автоматично викличеться __exit__ для закриття з'єднання.   
