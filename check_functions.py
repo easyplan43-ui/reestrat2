@@ -25,7 +25,7 @@ class InputValidator:  # це звичайна функція check_entered_data
             
         elif "NVARCHAR" in datatype.upper():
             # \w — букви та цифри, \s — пробіли. Спецсимволи (напр. @, #, $) заборонені.
-            pattern = rf"^[a-zA-Zа-яА-ЯіІїЇєЄґҐ0-9\s\-]{{0,{size}}}$"
+            pattern = rf"^[a-zA-Zа-яА-ЯіІїЇєЄґҐ0-9\s.,\-]{{0,{size}}}$"
 
         elif "VARCHAR" in datatype.upper():
             # \w — букви та цифри, \s — пробіли. Спецсимволи (напр. @, #, $) заборонені.
