@@ -61,13 +61,13 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
        
         self.search_btn = QPushButton("Пошук")   # --------------- Кнопка пошуку ----------
         self.search_btn.hide()
-        self.search_btn.clicked.connect(self.check_select)   # При нажатті на кнопку йде перевірка введеного тексту і пошук в бд
+        self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку йде перевірка введеного тексту з подальшим пошуком в бд
         self.search_layout.addWidget(self.search_btn)
         
-        self.main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
+        self.main_layout.addLayout(self.search_layout, stretch=0)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
         self.table = QTableWidget()             # -----------Таблиця виводу інфи з бд ---------
         self.table.hide()
-        self.main_layout.addWidget(self.table)
+        self.main_layout.addWidget(self.table, stretch=1)   #  stretch=1 означає "забрати все вільне місце"
         self.main_layout.addStretch()   # Випадаючі списки і таблицю даємо на саму гору
 
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
@@ -87,6 +87,8 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         else:       #  Якщо користувач вибрав категорії по замовчуванню 
             self.sub_vupad_spusok.hide()       #    Ховаємо випадаючий список, якщо підкатегорій немає
             self.table.hide()                  #    Ховаємо таблицю показу щойно введених даних
+            self.search_input.hide()
+            self.search_btn.hide()
         
     def show_table(self, index):   #  Виводить на екран таблицю з результатами пошуку і поле пошуку з кнопкою Пошук
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
@@ -156,7 +158,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
             logger_db_conn.error(f"Помилка при виконанні запиту. Детали: {e}")         # logger з файлу ragistr_error
             return []   
 
-    def check_select(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
+    def check_searched_text(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
         # Отримуємо текст і прибираємо зайві пробіли по боках
         vvedenuy_text = self.search_input.text().strip()   # Отримуємо текст з поля вводу і прибираємо зайві пробіли по боках
         if not vvedenuy_text:  # Якщо поле порожнє — можна вивести попередження
@@ -167,8 +169,29 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
             msg.exec()   # Показуємо вікно
             return
-        # Якщо текст є — викликаємо ваш метод пошуку в БД
-        #self.search_in_db(vvedenuy_text)      
+       
+        rows = self.search_in_db(vvedenuy_text)    # Якщо текст є — викликаємо пошуку в БД    
+        self.table.setRowCount(len(rows)) # Устанавливаем количество строк
+        print(rows)
+    def search_in_db(self, query_text):  # Робить пошук в бд і видеє знайдений рядок 
+        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
+        col_main = [f"m.{col[0]}" for col in self.list_stovp_main]       # Поєднуємо m зі стовпцями головної табл
+        col_depend = [f"d.{col[0]}" for col in self.list_stovp_depend]   # Поєднуємо d зі стовпцями залежної табл
+        all_columns = ", ".join(col_main + col_depend) 
+        query = f"""SELECT {all_columns} FROM {Table_main_product} AS m INNER JOIN 
+                      {self.table_name_depend} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
+                       WHERE m.Artukyl LIKE ?;"""
+        try:
+            with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
+                 cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
+                 param = f"%{query_text}%"   # захист від SQL Injection
+                 #print(query)
+                 cursor.execute(query, (param,))     # Виконуємо запит через курсор
+                 data = cursor.fetchall()
+                 return data
+        except Exception as e:
+            logger_db_conn.error(f"Помилка при виконанні запиту. Детали: {e}")         # logger з файлу ragistr_error
+            return []    
        
 class Peremichena(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Переміщення" 
     def __init__(self):
