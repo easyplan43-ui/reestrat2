@@ -7,14 +7,15 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLine
 from PyQt6.QtGui import QFont, QColor
 from constants import *
 from decimal import Decimal    # без цього не йде сортування в таблиці по колонці ціна
-from conn_to_db import DBConnector, ZaputuCategoriesDB # клас для підключення до бд
+from conn_to_db import DBConnector, ZaputuCategoriesDB, ZaputuProductDB # клас для підключення до бд
 from dodat_classes import InputValidator, DialogWindow, TableManager  #  звертаємося до статичних методів класів помічників, щоб не створ екземпляр класу
 from registr_error import logger_db_conn   # регистрація помилок в файл
 # Тільки класи для реалізації підменю "Склад". Незабудь новий створюваний клас відмітити в файлі: string_to_class
 class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Залишок товару" 
     def __init__(self):
         super().__init__()
-        self.ekzemp_category = ZaputuCategoriesDB(Table_category)   # Створюємо екземпляр класу, передаючи назву таблиці
+        self.ekzemp_category = ZaputuCategoriesDB(Table_category)   # Створюємо екземпляр для роботи з категоріями, він успадков все від WorkDB
+        self.ekzemp_product = ZaputuProductDB(Table_main_product)   # Створюємо екземпляр для роботи з продукцією, він успадков все від WorkDB
         self.table_name_depend = None # Це імя залежної таблиці від табл Products, наприклад це може бути табл: Memory, Storage, Proccessor,..
         self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
         self.sub_cat_id = None    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
@@ -27,7 +28,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         
         self._init_ui() # метод дає дизайн і вигляд кнопок, випадаючих списків
        
-    def _init_ui(self):
+    def _init_ui(self):    # задає дизайн, створ центр віджет, випадаючі списки, кнопки, строка пошуку, сигнали, що при нажаті на кнопку буде викдик то то і то
         self.setStyleSheet("""
             QMainWindow { background-color: #f4f4f9; }
             QLabel { font-size: 14px; color: #333; font-weight: bold; }
@@ -55,9 +56,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         for cat_id, cat_name, cat_tag in self.category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
             self.vupad_spusok.addItem(cat_name, (cat_id, cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
         
-        for widget in [self.sub_vupad_spusok, self.update_btn, self.search_input, self.search_btn, self.table]: 
-            widget.hide()    # Приховуємо кнопки і поле Search і sub-випад список 
-        
+        self._hide_widgets()  # Виклик служб метод який приховує кнопки і поле Search і sub-випад список 
         self.search_layout.addWidget(self.vupad_spusok)      # Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.update_btn)
@@ -69,50 +68,71 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
         main_layout.addWidget(self.table, stretch=1)   #  stretch=1 означає "забрати все вільне місце"
         main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
-        
+                       # -------------------------------------- Сигнали -------------------------------------------------------
         self.vupad_spusok.currentIndexChanged.connect(self.show_sub_vupad_spusok)  # Коли корист вибирає якийсь елем у випадаючому списку, показуємо sub список під головн випад списком
         self.sub_vupad_spusok.currentIndexChanged.connect(self.show_table)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю 
         self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
         self.update_btn.clicked.connect(self.find_index_item)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю 
         
+    def _hide_widgets(self):  # Внутр службов метод, ховає таблиці, поле вводу при пошуку, кнопки, sub випадаючі списки
+        widgets = [self.sub_vupad_spusok, self.table, self.search_input, self.search_btn, self.update_btn] 
+        for w in widgets: 
+            w.hide()
+
+    def _show_widgets(self, show_all_widgets=False): # Внутр службов метод, робить видимим таблиці, поле вводу при пошуку, кнопки
+        # show_all_widgets=False означає За замовчуванням я показую всі віджети  
+        self.sub_vupad_spusok.show()   
+        if not show_all_widgets:    # Це для show_all_widgets = True
+            self.table.show()
+            self.search_input.show()
+            self.search_btn.show()
+            self.update_btn.show()  
+
+    def _fill_sub_vupadspusok(self, sub_categories):  # Служб метод формує sub випад список 
+        self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку       
+        self.sub_vupad_spusok.clear()    #  Очищуємо віджет перед оновленням 
+        self.sub_vupad_spusok.addItem("Виберіть підкатегорію товара", 0)   # Додаємо дефолтний елемент першим до випадаючого списку
+
+        for sub_cat_id, sub_cat_name in sub_categories: # sub_category = [(4, 'Intel Core'), (5, 'AMD Ryzen'), (6, 'XEON/EPYC')]
+            self.sub_vupad_spusok.addItem(sub_cat_name, sub_cat_id)  # Додаємо до sub випадаючого списку елементи
+
+        self.sub_vupad_spusok.setCurrentIndex(0)   # Таблиця з'явиться лише тоді, коли ви перемкнетеся з "Виберіть підкатегорію товара" на реальний товар
+        self.sub_vupad_spusok.blockSignals(False) # Вмикаємо сигнали назад
+        self.sub_vupad_spusok.show()   
+
+    def _form_list_ukrstovpciv(self, list_stovpciv_full): # Служб метод формує список стовпців з українськими назвами в шабці таблиці
+        list_ukr_namestov = []            # цей список передав в шабку-заголовок таблиці
+        for item in list_stovpciv_full:  # Формується список  list_ukr_namestovp
+            stovpec = item[0]
+            korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних звертаючись до таблиці бд
+            if korteg_ukr_namestovp and korteg_ukr_namestovp[0]: # Якщо в бд переклад є
+                ukr_namestovp = korteg_ukr_namestovp[0][0]    # беремо 1-ий елемент кортежу, наприклад: Артикул
+            else:    # Якщо в бд перекладу немає то лишаємо англійську назву типу:   Artukyl
+                ukr_namestovp = stovpec   
+            list_ukr_namestov.append(ukr_namestovp)  # формую кортеж з україн назв ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', 'Тип диска', "Обє'м Тб", 'Швидкість Мб/c']
+        return list_ukr_namestov
+
     def find_index_item(self):  # Каже який пункт підменю (index: 0, 1, 2,..) вибраний в момент звернення і дальше виклик метод show_table  
         index = self.sub_vupad_spusok.currentIndex()
         self.show_table(index)  
        
-          # Отримуємо ID підкатегорії (через currentData) замість індексу рядка
-        # Це надійніше, бо індекс 0 — це завжди текст "Виберіть підкатегорію"
-        #sub_id = self.sub_vupad_spusok.currentData()
-        
-        #if sub_id != 0: # Якщо вибрано реальну підкатегорію, а не дефолтний текст
-        #    self.sub_cat_id = sub_id
-         #   self.show_table(sub_id)
-
-    def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
-        self.sub_vupad_spusok.blockSignals(True)  # Тимчасово вимикаємо сигнали, щоб форма вводу не вискакувала завчасно при додавані елементів до sub випад списку
+    def show_sub_vupad_spusok(self):  # Оркестратор, який керує роботою інших методів: _fill_sub_vupadspusok, _show_widgets, _hide_widgets 
+        # якщо корист вибрав sub категор, тоді цей метод викликає _fill_sub_vupadspusok для формування sub випад списку
         data = self.vupad_spusok.currentData()  # currentData(): Метод, который отримує прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
+        if not data:
+            self._hide_widgets()  # виклик метод який ховає кнопки, випад списки, таблиці, поле для пошуку
+            return
         cat_id, self.cat_tag = data # отримані дані розпреділяємо між двома зміними : 12 ram
         sub_categories = self.ekzemp_category.get_subcategory_by_id(cat_id)    #    [(13, 'DDR4'), (14, 'DDR5')]
         if sub_categories:   #  Якщо користувач вибрав любу з підкатегорій окрім категорії по замовчуванню 
-            self.sub_vupad_spusok.clear()    #  Очищуємо віджет перед оновленням 
-            self.sub_vupad_spusok.addItem("Виберіть підкатегорію товара", 0)   # Додаємо дефолтний елемент першим до випадаючого списку
-            for sub_cat_id, sub_cat_name in sub_categories: # sub_category = [(4, 'Intel Core'), (5, 'AMD Ryzen'), (6, 'XEON/EPYC')]
-                self.sub_vupad_spusok.addItem(sub_cat_name, sub_cat_id)  # Додаємо до sub випадаючого списку елементи
-            self.sub_vupad_spusok.setCurrentIndex(0)   # Таблиця з'явиться лише тоді, коли ви перемкнетеся з "Виберіть підкатегорію товара" на реальний товар
-            self.sub_vupad_spusok.blockSignals(False) # Вмикаємо сигнали назад
-            self.sub_vupad_spusok.show()
+            self._fill_sub_vupadspusok(sub_categories) # Виклик метод який формує sub випад список
+            self._show_widgets(show_all_widgets=True)  # Якщо користувач вибрав любу з підкатегорій, тоді показуємо кнопки, поле пошуку і таблиці
         else:       #  Якщо користувач вибрав категорії по замовчуванню 
-            self.sub_vupad_spusok.hide()       #    Ховаємо випадаючий список, якщо підкатегорій немає
-            self.table.hide()                  #    Ховаємо таблицю показу щойно введених даних
-            self.search_input.hide()
-            self.search_btn.hide()
-            self.update_btn.hide()
+            self._hide_widgets()  # виклик метод який ховає кнопки, випад списки, таблиці, поле для пошуку
         
     def show_table(self, index):   #  Виводить на екран таблицю з результатами пошуку і поле пошуку з кнопкою Пошук
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
-            self.table.hide()                  #    Ховаємо таблицю показу щойно введених даних
-            self.search_input.hide()
-            self.search_btn.hide()
-            self.update_btn.hide()
+            self._hide_widgets()  # виклик метод який ховає кнопки, випад списки, таблиці, поле для пошуку
             return
         self.sub_cat_id = self.sub_vupad_spusok.currentData()    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
         self.list_stovp_main = self.formyem_slovnuk(Table_main_product) # [('Artukyl',), ('Nazva_tov',), ('Description',), ('Kilkist',), ('Price',), ('Created',)]
@@ -122,15 +142,17 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.table_name_depend =  korteg_table_name[0][0]  # беремо 1-ий елемент кортежу -  hardware.Storage_det
         self.list_stovp_depend = self.formyem_slovnuk(self.table_name_depend)   # [('stor_type',), ('disk_capacity',), ('disk_speed',)]
         list_stovpciv_full = self.list_stovp_main + self.list_stovp_depend  # Обєднуємо списки отримані з таблиці Products і з таблиці залежної, напр, Memory, Storage,....
-        list_ukr_namestovp = []            # цей список передав в шабку-заголовок таблиці
-        for item in list_stovpciv_full:  # Формується список  list_ukr_namestovp
-            stovpec = item[0]
-            korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних звертаючись до таблиці бд
-            if korteg_ukr_namestovp and korteg_ukr_namestovp[0]: # Якщо в бд переклад є
-                ukr_namestovp = korteg_ukr_namestovp[0][0]    # беремо 1-ий елемент кортежу, наприклад: Артикул
-            else:    # Якщо в бд перекладу немає то лишаємо англійську назву типу:   Artukyl
-                ukr_namestovp = stovpec   
-            list_ukr_namestovp.append(ukr_namestovp)  # формую кортеж з україн назв ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', 'Тип диска', "Обє'м Тб", 'Швидкість Мб/c']
+        list_ukr_namestovp = self._form_list_ukrstovpciv(list_stovpciv_full)  # Виклик служб метод, який формує список стовпців з українськими назвами в шабці таблиці
+        print(list_ukr_namestovp)        
+       # list_ukr_namestovp = []            # цей список передав в шабку-заголовок таблиці
+       # for item in list_stovpciv_full:  # Формується список  list_ukr_namestovp
+       #     stovpec = item[0]
+       #     korteg_ukr_namestovp = self.ekzemp_category.get_display_ukrtext(Table_translate, stovpec) # за вказан імям stovpec на анг отримуєм укр читабел текст при полі вводу даних звертаючись до таблиці бд
+       #     if korteg_ukr_namestovp and korteg_ukr_namestovp[0]: # Якщо в бд переклад є
+       #         ukr_namestovp = korteg_ukr_namestovp[0][0]    # беремо 1-ий елемент кортежу, наприклад: Артикул
+       #     else:    # Якщо в бд перекладу немає то лишаємо англійську назву типу:   Artukyl
+       #         ukr_namestovp = stovpec   
+       #     list_ukr_namestovp.append(ukr_namestovp)  # формую кортеж з україн назв ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', 'Тип диска', "Обє'м Тб", 'Швидкість Мб/c']
         
         rows = self.select_prod()   # беремо з бази сирий рядок типу: [('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), .......
         if not rows:
@@ -139,18 +161,15 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.table.setHorizontalHeaderLabels(list_ukr_namestovp) # зверт до обєкту таблиці і встановл назви стовпців
         # ------------------------------------- Заповнення таблиці даними -----------------------------------------
         TableManager.fill_table(self.table, rows) # зверт до класу помічника по створеню і заповненю таблиці відображ даних на екрані, який є у файлі dodat_classes
-        self.table.show()
-        self.search_input.show()
-        self.search_btn.show()
-        self.update_btn.show()
-        
+        self._show_widgets(show_all_widgets=False)  # виклик метод який показує кнопки, поле пошуку, таблицю
+            
     def formyem_slovnuk(self, table_name):    #  За вказан імям таблиці видає список Не всіх [(стовпців, тип_даних, відвед_кілкість_символ)]
         list_stovpciv_type = self.ekzemp_category.get_all_stovp_bez_identity(table_name)
         return  list_stovpciv_type
 
-    def select_prod(self):  #  Виводить з обох таблиць: main і depend інфу в таблицу на екрані
-        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
-        cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
+    def select_prod(self):  #  Підготов дані для пошуку і виклик метод  Виводить з обох таблиць: main і depend інфу в таблицу на екрані
+        cortege_fk_prim_key = self.ekzemp_product.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
+        cortege_fk_prim_key_where = self.ekzemp_product.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
         if not cortege_fk_prim_key or not cortege_fk_prim_key_where:    # Якщо не дістали Foreign Key з бд то:
             logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {self.table_name_depend}")
             return []
@@ -158,21 +177,9 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         col_main = [f"m.{col[0]}" for col in self.list_stovp_main]       # Поєднуємо m зі стовпцями головної табл
         col_depend = [f"d.{col[0]}" for col in self.list_stovp_depend]   # Поєднуємо d зі стовпцями залежної табл
         all_columns = ", ".join(col_main + col_depend) 
-        query = f"""SELECT {all_columns} FROM {Table_main_product} AS m INNER JOIN 
-                      {self.table_name_depend} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
-                       WHERE m.{cortege_fk_prim_key_where[0][0]} = ?;"""
-        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
-            if conn:
-                try:
-                    cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
-                    cursor.execute(query, (self.sub_cat_id,))     # Виконуємо запит через курсор
-                    return cursor.fetchall()
-                except Exception as ex:
-                    logger_db_conn.error(f"Не вдалося виконати запит. Детали: {ex}")         # logger з файлу ragistr_error
-                    return []     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК ПРИ ПОМИЛЦІ ЗАПИТУ 
-            else:
-                return []   # Вертаємо пустий list якщо немає зєднання
-      
+        result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
+        return result 
+                    
     def check_searched_text(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
         vvedenuy_text = self.search_input.text().strip()   # Отримуємо текст з поля вводу і прибираємо зайві пробіли по боках
         if not vvedenuy_text:  # Якщо поле порожнє — можна вивести попередження
@@ -185,33 +192,16 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
             self.search_input.clear()   # Очищаємо поле Search
         else:    #  якщо корист щось ввів і це знайдено  в бд   
             TableManager.fill_table(self.table, rows) # зверт до класу помічника по створеню і заповненю таблиці відображ даних на екрані
-            self.table.show()
             self.search_input.clear()   # Очищаємо поле Search
-            self.search_input.show()
-            self.search_btn.show()
-            self.update_btn.show()
-       
-    def search_in_db(self, query_text):  # Робить пошук в бд і видеє знайдений рядок 
-        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
+                
+    def search_in_db(self, query_text):  # Підготов дані для пошуку і виклик метод get_product_details_by_search із класу ZaputuProductDB для реалізац пошуку по тексту який ввів користувач в строці пошуку 
+        cortege_fk_prim_key = self.ekzemp_product.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
         col_main = [f"m.{col[0]}" for col in self.list_stovp_main]       # Поєднуємо m зі стовпцями головної табл
         col_depend = [f"d.{col[0]}" for col in self.list_stovp_depend]   # Поєднуємо d зі стовпцями залежної табл
         all_columns = ", ".join(col_main + col_depend) 
-        query = f"""SELECT {all_columns} FROM {Table_main_product} AS m INNER JOIN 
-                      {self.table_name_depend} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
-                       WHERE m.Artukyl LIKE ?;"""
-        with DBConnector() as conn:   # conn — це об'єкт Connection або труба двері до бд
-            if conn:
-                try:
-                   cursor = conn.cursor()    # Створюємо «посередника» між Python-кодом і базою даних
-                   param = f"%{query_text}%"   # захист від SQL Injection
-                   cursor.execute(query, (param,))     # Виконуємо запит через курсор
-                   return cursor.fetchall()
-                except Exception as ex:
-                    logger_db_conn.error(f"Не вдалося виконати запит. Детали: {ex}")         # logger з файлу ragistr_error
-                    return []     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК ПРИ ПОМИЛЦІ ЗАПИТУ 
-            else:
-                return []   # Вертаємо пустий list якщо немає зєднання  
-                  
+        result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text)
+        return result
+                         
 class Peremichena(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Переміщення" 
     def __init__(self):
         super().__init__()

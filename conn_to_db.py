@@ -38,7 +38,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
     def __init__(self, name_table):
        self._name_table = name_table    # _name_table - private, внутр логіка класу, не чіпати ззовні  
 
-    def _execute_query(self, query, params=None):  # Внутр метод виконує запит до бд через try 
+    def execute_query(self, query, params=None):  # метод виконує запит до бд через try 
         with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
             if not conn:
                 return []     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
@@ -56,17 +56,17 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
     def get_name_all_stovpciv_table(self, table = None ):  # Отримуємо назви всіх стовпців в таблиці через звернення до системних таблиць sys
         target_table = self._get_target_table(table)
         query = f"SELECT name AS Column_Name FROM sys.columns WHERE object_id = OBJECT_ID('{target_table}');" 
-        return self._execute_query(query)   
+        return self.execute_query(query)   
 
     def get_name_table_by_tag(self, table = None, tag_table = None):    #  Приймає тег і видає  назву таблиці, яка відпов цьому тегові
         target_table = self._get_target_table(table)  
         query = f"SELECT table_name FROM {target_table} WHERE tag = ?";  
-        return self._execute_query(query, (tag_table,))   # Виконуємо запит через курсор і передаємо tag_table  як кортеж 
+        return self.execute_query(query, (tag_table,))   # Виконуємо запит через курсор і передаємо tag_table  як кортеж 
     
     def get_display_ukrtext(self, table = None, eng_name_stovpec = None): # Видае читабильний укр. текст при вводі даних в форму, за вказаним eng name_stovpec
         target_table = self._get_target_table(table) 
         query = f"SELECT ukr_namestovp FROM {target_table} WHERE eng_namestovp = ?";
-        return self._execute_query(query, (eng_name_stovpec,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж  
+        return self.execute_query(query, (eng_name_stovpec,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж  
     
     def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
         target_table = self._get_target_table(table)
@@ -80,7 +80,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                                AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
                                WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
                                AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}'); """
-        return self._execute_query(query)
+        return self.execute_query(query)
     
     def get_foreignkey(self, table = None):    # Отримуємо 1) - назву стовпця з властивістью Foreign key і 2) - назву стовпця на який 1 стовпець зсилається
         target_table = self._get_target_table(table)
@@ -91,7 +91,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                 ON f.object_id = fc.constraint_object_id
                 WHERE f.parent_object_id = OBJECT_ID('{target_table}')
                 ORDER BY ColumnName;  """ 
-        return self._execute_query(query) 
+        return self.execute_query(query) 
 
     def get_all_stovp_bez_identity_datetime(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і datetime
         target_table = self._get_target_table(table) 
@@ -99,7 +99,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                    WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}'
                        AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
-        return self._execute_query(query) 
+        return self.execute_query(query) 
  
     def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
         # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys  
@@ -116,16 +116,32 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                                AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
                                WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
                                AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}'); """ 
-        return self._execute_query(query)
+        return self.execute_query(query)
         
 class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються категорій до бд
     def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id і її tag щоб знати яку таблицю використ: чи Process_det чи Memory_det, ...
         query = f"SELECT Catid, Catname, tag FROM {self._name_table} WHERE Parentid IS NULL;"
-        return self._execute_query(query)  # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або []
+        return self.execute_query(query)  # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або []
 
     def get_subcategory_by_id(self, id):   #  Отримуємо назви підкатегорій товару за вказаним id
         query = f"SELECT Catid, Catname FROM {self._name_table} WHERE Parentid = ?;"
-        return self._execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
+        return self.execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
+
+class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і містить методи із запитами які виводять дані про продукт із двох таблиць JOIN  
+    # Цей метод виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку:
+    def get_product_details(self, all_columns, depend_table, cortege_fk_prim_key, cortege_fk_prim_key_where, sub_cat_id):
+        query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
+               {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
+                WHERE m.{cortege_fk_prim_key_where[0][0]} = ?;"""
+        return self.execute_query(query, (sub_cat_id,))
     
+    # Цей метод виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку
+    def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text):
+        query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
+                    {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
+                     WHERE m.Artukyl LIKE ?;"""
+        param = f"%{query_text}%"                  # захист від SQL Injection
+        return self.execute_query(query, (param,))
+      
    
 
