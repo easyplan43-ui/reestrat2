@@ -1,4 +1,4 @@
-import pyodbc
+import pyodbc   # some test comments
 import datetime # для сортування по даті
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit,
                              QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout,

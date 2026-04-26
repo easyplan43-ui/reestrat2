@@ -1,4 +1,4 @@
-import pyodbc
+import pyodbc # some test comments
 from PyQt6.QtWidgets import QMessageBox
 from constants import *      # Для загрузки переменных і констант из .файла
 from registr_error import logger_db_conn
