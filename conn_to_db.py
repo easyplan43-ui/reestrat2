@@ -37,19 +37,42 @@ class DBConnector:
 class  WorkDB:   # Базовий клас, працює із бд, надсилає запити до бд і отримує дані або [], робить логування в файл, можливо пізніше зроби його АБСТРАКТНИМ
     def __init__(self, name_table):
        self._name_table = name_table    # _name_table - private, внутр логіка класу, не чіпати ззовні  
+       self.error_zaputy = None  # використ щоб передати текст помилки при виконані запиту десь у зовнішн код, ця зміна використ в методі execute_query_insert
 
-    def execute_query(self, query, params=None):  # метод виконує запит до бд через try 
+    def execute_query(self, query, params=None):  # метод виконує запит до бд, типу SELECT через try 
         with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
             if not conn:
                 return []     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
             try:     
                 with conn.cursor() as cursor:    # Створюємо посередника між Python-кодом і базою даних і курсор буде гарант закрит після отрим даних
-                    cursor.execute(query, params or ())    # Виконуємо запит через курсор
+                    cursor.execute(query, params or ())    # Виконуємо запит через курсор, де params or () - перетворює None на порожній кортеж (), що робить виклик безпечним
                     return cursor.fetchall()               # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів  
             except Exception as ex:
                 logger_db_conn.error(f"Не вдалося виконати запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
                 return []      # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК ПРИ ПОМИЛЦІ ЗАПИТУ
     
+    def execute_query_insert(self, query, params=None): # метод виконує запит до бд, типу INSERT через try
+        with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
+            if not conn:
+                return False     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
+            try:     
+                with conn.cursor() as cursor:    # Створюємо посередника між Python-кодом і базою даних і курсор буде гарант закрит після отрим даних
+                    cursor.execute(query, params or ())    # Виконуємо запит через курсор, де params or () - перетворює None на порожній кортеж (), що робить виклик безпечним
+                    conn.commit()              # Запиши зміни на диск назавжди 
+                    return True
+            except pyodbc.Error as ex:
+                if conn:
+                    conn.rollback()     #   відкатуємо транзакцію при помилці Бд
+                # Этот блок ловить ошибку, которую пробросил THROW из SQL
+                logger_db_conn.error(f" Помилка бд при виконанні запиту. Детали: {ex}")
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
+                return False    
+            except Exception as ex:
+                # Ловить помилки самого Python (наприклад, помилки логіки або типів)
+                logger_db_conn.error(f"Не вдалося виконати запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
+                return False
+                
     def _get_target_table(self, table): # Допоміжний внутр. метод для вибору таблиці (якась нова передана таблиця або та що по дефолту)
         return table if table else self._name_table  # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
     
@@ -135,13 +158,32 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
                 WHERE m.{cortege_fk_prim_key_where[0][0]} = ?;"""
         return self.execute_query(query, (sub_cat_id,))
     
-    # Цей метод виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку
+    # Цей метод виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search
     def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text):
         query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
                     {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
                      WHERE m.Artukyl LIKE ?;"""
         param = f"%{query_text}%"                  # захист від SQL Injection
         return self.execute_query(query, (param,))
-      
+    
+    def insert_in_tables(self, depend_tabl, list_stovp_bez_id_maintabl, kilk_stovp_main_tabl, list_all_stovp_depend_tabl, placeholders_depend, params):
+        query = f"""SET NOCOUNT ON;  -- <--- без цього коду Python не сприймає ошибки через THROW
+                        BEGIN TRY
+                           BEGIN TRANSACTION; 
+                               DECLARE @LastInsId INT; 
+                               INSERT INTO {self._name_table} ({list_stovp_bez_id_maintabl}) 
+                                  VALUES ({', '.join(['?'] * kilk_stovp_main_tabl)});
+                               SET @LastInsId = SCOPE_IDENTITY();
+                               INSERT INTO {depend_tabl} ({list_all_stovp_depend_tabl}) 
+                                  VALUES ({placeholders_depend});
+                           COMMIT TRANSACTION;
+                        END TRY
+                        BEGIN CATCH
+                           IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+                            THROW;     -- <--- ОБЯЗАТЕЛЬНО: перерве виконання і пробрасывает ошибку в Python
+                        END CATCH"""
+        return self.execute_query_insert(query, params)
+        
+    
    
 
