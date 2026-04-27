@@ -1,0 +1,5 @@
+{
+    "dataworkspace.excludedProjects": [
+        "reestrat_db/reestrat_db/reestrat_db.sqlproj"
+    ]
+}

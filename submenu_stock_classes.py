@@ -1,7 +1,7 @@
 import pyodbc   # some test comments
 import datetime # для сортування по даті
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit,
-                             QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout,
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit, QGroupBox,
+                             QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout, QRadioButton,
                              QPushButton, QHeaderView, QFrame, QAbstractItemView, QMessageBox)
 #from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QFont, QColor
@@ -21,6 +21,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.sub_cat_id = None    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
         self.list_stovp_main = []    # Список буде містити імена стовпців для головної таблиці для передачі в TSQL запит SELECT 
         self.list_stovp_depend = []  # Список буде містити імена стовпців для залежної таблиці для передачі в TSQL запит SELECT 
+        self.list_widgets = []
         self.category = self.ekzemp_category.get_category_and_id()   # отримуєм назви категорій і її id з таблиці типу:[(3, 'Процесори', 'cpu'), (7, 'Диски', 'storage'), (12, 'Память', 'ram'), (15, 'Материнські плати', 'mainboard')]
         
         if not self.category:
@@ -41,26 +42,32 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget) # Вертикальний розподіл: вгорі категорії, підкатегорії пошук, внизу - таблиця
 
-        self.search_layout    = QHBoxLayout()       # -------------- Горизонт панель де розміщено категорія і пошук -------------
-        self.vupad_spusok     = QComboBox()   # Создает новый экземпляр  ---------- «Головн випадаючий список»  ------------------------
-        self.sub_vupad_spusok = QComboBox()   # -----------  Створюємо sub випадаючий список відразу, але ховаємо його --------
-        self.update_btn       = QPushButton("Оновити")   # ---------- Створюємо кнопку Оновити дані з бд  -------------------
-        self.search_input     = QLineEdit()   # Це поле пошуку чогось / поле вводу 
+        self.search_layout    = QHBoxLayout()  #     Створюємо Горизонт панель де розміщено категорія і пошук 
+        self.vupad_spusok     = QComboBox()    #     Створюємо новый экземпляр  ---------- «Головн випадаючий список»  
+        self.sub_vupad_spusok = QComboBox()    #     Створюємо sub випадаючий список відразу, але ховаємо його 
+        self.update_btn       = QPushButton("Оновити")    #    Створюємо кнопку Оновити дані з бд  
+        self.radio1_btn       = QRadioButton("Артикул")   #    Створюємо радіокнопки    
+        self.radio2_btn       = QRadioButton("Назва") 
+        self.search_input     = QLineEdit()    #  Це поле пошуку чогось / поле вводу 
         self.search_input.setPlaceholderText("Введіть назву товару...")
         self.search_btn       = QPushButton("Пошук")     # --------------- Кнопка пошуку ----------
         self.table            = QTableWidget()           # -----------Таблиця виводу інфи з бд ---------
        
+        self.radio1_btn.setChecked(True) # Робимо цю радіокнопку активною
         self.vupad_spusok.setMaximumWidth(260) 
         self.vupad_spusok.addItem("Виберіть категорію товара", (0, None))   # Додаємо дефолтний елемент першим до випадаючого списку
         
         for cat_id, cat_name, cat_tag in self.category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
             self.vupad_spusok.addItem(cat_name, (cat_id, cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
         
-        WorkwithWidgets.hide_widgets([self.sub_vupad_spusok, self.update_btn, self.search_input, self.search_btn, self.table])  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
+        self.list_widgets = [self.update_btn, self.search_input, self.search_btn, self.table,  self.radio1_btn,  self.radio2_btn] 
+        WorkwithWidgets.hide_widgets([self.sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
 
         self.search_layout.addWidget(self.vupad_spusok)      # Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.update_btn)
+        self.search_layout.addWidget(self.radio1_btn)
+        self.search_layout.addWidget(self.radio2_btn)
         self.search_layout.addWidget(self.search_input)
         self.search_layout.addWidget(self.search_btn)
         self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
@@ -104,12 +111,11 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
         cat_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который отримує прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
         sub_categories = self.ekzemp_category.get_subcategory_by_id(cat_id)    #    [(13, 'DDR4'), (14, 'DDR5')]
-        list_widgets = [self.update_btn, self.search_input, self.search_btn, self.table]
-        WorkwithWidgets.forming_sub_vupad_spusok(self.sub_vupad_spusok, list_widgets, sub_categories)  # Виклик статич методу з класу WorkwithWidgets, що 
+        WorkwithWidgets.forming_sub_vupad_spusok(self.sub_vupad_spusok, self.list_widgets, sub_categories)  # Виклик статич методу з класу WorkwithWidgets, що 
                  
     def show_table(self, index):   #  Виводить на екран таблицю з результатами пошуку і поле пошуку з кнопкою Пошук
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
-            WorkwithWidgets.hide_widgets([self.update_btn, self.search_input, self.search_btn, self.table])  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
+            WorkwithWidgets.hide_widgets(self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
             return
         
         self.sub_cat_id = self.sub_vupad_spusok.currentData()    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
@@ -124,7 +130,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.table.setHorizontalHeaderLabels(list_ukr_namestovp) # зверт до обєкту таблиці і встановл назви стовпців
         # ------------------------------------- Заповнення таблиці даними -----------------------------------------
         TableManager.fill_table(self.table, rows) # зверт до класу помічника з файлу dodat_classes по створеню і заповненю таблиці відображ даних на екрані, який є у файлі dodat_classes
-        WorkwithWidgets.show_widgets([self.table, self.search_input, self.search_btn, self.update_btn])  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+        WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
   
     def select_prod(self):  # Підгот служб дані для SELECT і виклик метод, який виводить з обох таблиць: main і depend інфу в таблицу на екрані
         cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
@@ -153,7 +159,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         else:    #  якщо корист щось ввів і це знайдено  в бд   
             TableManager.fill_table(self.table, rows) # зверт до класу помічника по створеню і заповненю таблиці відображ даних на екрані
             self.search_input.clear()   # Очищаємо поле Search
-            WorkwithWidgets.show_widgets([self.table, self.search_input, self.search_btn, self.update_btn])  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+            WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
                
     def search_in_db(self, query_text):  # Підготовл служб дані для пошуку і виклик метод який здійснює сам пошук в бд за введеними даними від корист в полі Search
         cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
