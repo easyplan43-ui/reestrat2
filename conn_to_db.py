@@ -124,6 +124,13 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
         return self.execute_query(query) 
  
+    def get_all_stovp_varchar(self, table = None):  # Видає назви всіх стовпців з типом даних varchar або nvarchar
+        target_table = self._get_target_table(table) 
+        query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                   WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}' 
+                   AND DATA_TYPE IN ('varchar', 'nvarchar')"""
+        return self.execute_query(query) 
+    
     def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
         # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys  
         target_table = self._get_target_table(table)

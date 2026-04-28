@@ -3,11 +3,10 @@ import datetime # для сортування по даті
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit, QGroupBox,
                              QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout, QRadioButton,
                              QPushButton, QHeaderView, QFrame, QAbstractItemView, QMessageBox)
-#from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtGui import QFont, QColor
 from constants import *
 from decimal import Decimal    # без цього не йде сортування в таблиці по колонці ціна
-from conn_to_db import DBConnector, ZaputuCategoriesDB, ZaputuProductDB  # клас для підключення до бд
+from conn_to_db import ZaputuCategoriesDB, ZaputuProductDB  # клас для підключення до бд
 from dodat_classes import InputValidator, DialogWindow, TableManager, WorkwithWidgets  #  звертаємося до статичних методів класів помічників, щоб не створ екземпляр класу
 from registr_error import logger_db_conn   # регистрація помилок в файл
 # Тільки класи для реалізації підменю "Склад". Незабудь новий створюваний клас відмітити в файлі: string_to_class
@@ -22,6 +21,7 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.list_stovp_main = []    # Список буде містити імена стовпців для головної таблиці для передачі в TSQL запит SELECT 
         self.list_stovp_depend = []  # Список буде містити імена стовпців для залежної таблиці для передачі в TSQL запит SELECT 
         self.list_widgets = []
+        self.radio_btn = []    # Це Список радіокнопок, а не одна кнопка
         self.category = self.ekzemp_category.get_category_and_id()   # отримуєм назви категорій і її id з таблиці типу:[(3, 'Процесори', 'cpu'), (7, 'Диски', 'storage'), (12, 'Память', 'ram'), (15, 'Материнські плати', 'mainboard')]
         
         if not self.category:
@@ -46,41 +46,40 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.vupad_spusok     = QComboBox()    #     Створюємо новый экземпляр  ---------- «Головн випадаючий список»  
         self.sub_vupad_spusok = QComboBox()    #     Створюємо sub випадаючий список відразу, але ховаємо його 
         self.update_btn       = QPushButton("Оновити")    #    Створюємо кнопку Оновити дані з бд  
-        self.radio1_btn       = QRadioButton("Артикул")   #    Створюємо радіокнопки    
-        self.radio2_btn       = QRadioButton("Назва") 
         self.search_input     = QLineEdit()    #  Це поле пошуку чогось / поле вводу 
-        self.search_input.setPlaceholderText("Введіть назву товару...")
         self.search_btn       = QPushButton("Пошук")     # --------------- Кнопка пошуку ----------
         self.table            = QTableWidget()           # -----------Таблиця виводу інфи з бд ---------
        
-        self.radio1_btn.setChecked(True) # Робимо цю радіокнопку активною
         self.vupad_spusok.setMaximumWidth(260) 
         self.vupad_spusok.addItem("Виберіть категорію товара", (0, None))   # Додаємо дефолтний елемент першим до випадаючого списку
         
         for cat_id, cat_name, cat_tag in self.category: # category = [(3, 'Процесори', 'cpu'), (7, 'Накопичувачі', 'storage'), (12, 'Оперативна память', 'ram'), (15, 'Материнська плата', 'mainboard')]
             self.vupad_spusok.addItem(cat_name, (cat_id, cat_tag))   #  addItem(видимий_текст, (приховані_дані, приховані_дані))
         
-        self.list_widgets = [self.update_btn, self.search_input, self.search_btn, self.table,  self.radio1_btn,  self.radio2_btn] 
-        WorkwithWidgets.hide_widgets([self.sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
-
+        self.list_widgets = [self.update_btn, self.search_input, self.search_btn, self.table] # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу
+        
         self.search_layout.addWidget(self.vupad_spusok)      # Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.update_btn)
-        self.search_layout.addWidget(self.radio1_btn)
-        self.search_layout.addWidget(self.radio2_btn)
+        self.form_radiobtns()       # Метод створює, формує радіокнопки і робить одну по замовченю обраною
         self.search_layout.addWidget(self.search_input)
         self.search_layout.addWidget(self.search_btn)
         self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
         self.search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
 
+        WorkwithWidgets.hide_widgets([self.sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
+
         main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
         main_layout.addWidget(self.table, stretch=1)   #  stretch=1 означає "забрати все вільне місце"
         main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
-        
+        # ------------------------------------------------------- Сигнали --------------------------------------------------------------
         self.vupad_spusok.currentIndexChanged.connect(self.show_sub_vupad_spusok)  # Коли корист вибирає якийсь елем у випадаючому списку, показуємо sub список під головн випад списком
         self.sub_vupad_spusok.currentIndexChanged.connect(self.show_table)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю 
         self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
         self.update_btn.clicked.connect(self.find_index_item)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю 
+        for i in range(len(self.radio_btn)):
+            self.radio_btn[i].toggled.connect(lambda checked, index=i: self.update_pidkazky(index, checked))  # При виборі тої радіокнопки міняємо підказку в середині поля Search
+            
         
     def _union_stovpci(self, table_with_tag):  #  Служб метод дістає стовпці з 2-х таблиць і склеюємо їх в один список
         self.list_stovp_main = self.ekzemp_product.get_all_stovp_bez_identity()   # Виклик метода get_all_stovp_bez_identity з класу WorkDB
@@ -107,7 +106,23 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
     def find_index_item(self):  # Каже який пункт підменю (index: 0, 1, 2,..) вибраний в момент звернення і дальше виклик метод show_table  
         index = self.sub_vupad_spusok.currentIndex()
         self.show_table(index)  
-       
+
+    def update_pidkazky(self, index, is_checked):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
+        current_name = self.radio_btn[index].text()
+        self.search_input.setPlaceholderText(f"Пошук по {current_name}")
+           
+
+    def form_radiobtns(self):  # Формує радіо-кнопки згідно запиту до таблиці в якій витягуємо всі стовпці типу varchar/nvarchar   
+        list_varchar_stovp = self.ekzemp_product.get_all_stovp_varchar() # Цей метод видає назви всіх стовпців з типом даних varchar або nvarchar, [('Artukyl',), ('Nazva_tov',), ('Description',)]    
+        list_ukr_namestovp = self._form_spusok_ukr_stovp(list_varchar_stovp)  # Виклик служб методу, який формує список  list_ukr_namestovp - українських назв для англ стовпців в таблиці, ['Артикул', 'Назва товару', 'Опис']
+        for i in range(len(list_ukr_namestovp)):
+            btn = QRadioButton(list_ukr_namestovp[i])   # Створюємо одну кнопку
+            self.radio_btn.append(btn)    #  До списку радіокнопок додаємо текучу кнопку
+            self.search_layout.addWidget(self.radio_btn[i])
+            if i == 0:
+                self.radio_btn[i].setChecked(True)  #  Першу радиокнопку робимо активною
+        self.list_widgets.extend(self.radio_btn)  # до списку віджетів які ховаємо/показуємо додаємо список з радіокнопок       
+
     def show_sub_vupad_spusok(self):  # Показує sub випадаючий список, після того як корист вибере щось з основного випад. списку
         cat_id, self.cat_tag = self.vupad_spusok.currentData()  # currentData(): Метод, который отримує прихов дані, а саме cat_id з vupad_spusok.addItem(cat_name, cat_id)
         sub_categories = self.ekzemp_category.get_subcategory_by_id(cat_id)    #    [(13, 'DDR4'), (14, 'DDR5')]
