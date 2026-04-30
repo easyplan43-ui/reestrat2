@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import QDialog, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox, QCheckBox, QHBoxLayout, QFrame
-from PyQt6.QtWidgets import QMenuBar, QToolBar, QTabWidget, QWidgetAction  
+from PyQt6.QtWidgets import QMenuBar, QToolBar, QTabWidget  
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QIcon

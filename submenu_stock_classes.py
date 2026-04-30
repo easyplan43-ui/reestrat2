@@ -78,9 +78,10 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
         self.update_btn.clicked.connect(self.find_index_item)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю 
         for i in range(len(self.radio_btn)):
-            self.radio_btn[i].toggled.connect(lambda checked, index=i: self.update_pidkazky(index, checked))  # При виборі тої радіокнопки міняємо підказку в середині поля Search
-            
+            self.radio_btn[i].toggled.connect(lambda stan_btn, index=i: self.update_pidkazky(index, stan_btn))  # При виборі тої радіокнопки міняємо підказку в середині поля Search
         
+        self.update_pidkazky(0, True)  # Щоб вивело підказку в полі пошуку на самому початку виконання проги    
+
     def _union_stovpci(self, table_with_tag):  #  Служб метод дістає стовпці з 2-х таблиць і склеюємо їх в один список
         self.list_stovp_main = self.ekzemp_product.get_all_stovp_bez_identity()   # Виклик метода get_all_stovp_bez_identity з класу WorkDB
         korteg_table_name = self.ekzemp_category.get_name_table_by_tag(table_with_tag, self.cat_tag) # по cat_tag шукаємо назву відпов таблиці, вертає кортеж типу: [('hardware.Storage_detail',)]
@@ -102,16 +103,22 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
                 ukr_namestovp = stovpec   
             list_ukr_namestovp.append(ukr_namestovp)  # формую список з україн назв ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', 'Тип диска', "Обє'м Тб", 'Швидкість Мб/c']
         return list_ukr_namestovp
+    
+    def _get_selected_radiobtn_text(self):  # Служб метод для активної вибраної радіокнопки дає текст (її назву) на українс мові
+        for btn in self.radio_btn:
+            if btn.isChecked():
+                return btn.text()
+        return None    
             
     def find_index_item(self):  # Каже який пункт підменю (index: 0, 1, 2,..) вибраний в момент звернення і дальше виклик метод show_table  
         index = self.sub_vupad_spusok.currentIndex()
         self.show_table(index)  
 
-    def update_pidkazky(self, index, is_checked):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
-        current_name = self.radio_btn[index].text()
-        self.search_input.setPlaceholderText(f"Пошук по {current_name}")
-           
-
+    def update_pidkazky(self, index, stan_btn):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
+        if stan_btn: 
+           current_name = self.radio_btn[index].text()
+           self.search_input.setPlaceholderText(f"за {current_name}")
+    
     def form_radiobtns(self):  # Формує радіо-кнопки згідно запиту до таблиці в якій витягуємо всі стовпці типу varchar/nvarchar   
         list_varchar_stovp = self.ekzemp_product.get_all_stovp_varchar() # Цей метод видає назви всіх стовпців з типом даних varchar або nvarchar, [('Artukyl',), ('Nazva_tov',), ('Description',)]    
         list_ukr_namestovp = self._form_spusok_ukr_stovp(list_varchar_stovp)  # Виклик служб методу, який формує список  list_ukr_namestovp - українських назв для англ стовпців в таблиці, ['Артикул', 'Назва товару', 'Опис']
@@ -181,8 +188,10 @@ class ZalushTovary(QMainWindow):    #   Реалізує вкладку  - "Ск
         col_main = [f"m.{col[0]}" for col in self.list_stovp_main]       # Поєднуємо m зі стовпцями головної табл
         col_depend = [f"d.{col[0]}" for col in self.list_stovp_depend]   # Поєднуємо d зі стовпцями залежної табл
         all_columns = ", ".join(col_main + col_depend) 
+        ukr_criteria = self._get_selected_radiobtn_text()    # Викл служ метода який для активної вибраної радіокнопки дає її текст/назву україн мовою
+        eng_criteria = self.ekzemp_product.get_english_stovp(Table_translate, ukr_criteria)  # за назвою украї шукаємо назву англ стовпця - [('nazva_tov',)]
         # Нижче - Виклик метода класу ZaputuProductDB, виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search 
-        result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text)
+        result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text, eng_criteria)
         return result
                          
 class Peremichena(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Переміщення" 

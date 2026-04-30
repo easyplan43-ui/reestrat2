@@ -8,7 +8,7 @@ kilk_cds = len(DOMAIN_CONTROLLERS)
 SUBMENU_FILE = 'submenu_buttons.json'   #  файл використ в класі Controller в методах: def load_name_btns_from_json, def save_name_btns_in_json
 
 WHERE_SEARCH_USER = 'DC=videoservaillance,DC=com'
-WHERE_SEARCH_GROUPS_FOR_THIS_PROGRAM = 'OU=vpnobserv groups,OU=groups for specprograms,DC=videoservaillance,DC=com'  # спец OU де є групи тільки для цієї проги
+WHERE_SEARCH_GROUPS_FOR_THIS_PROGRAM = 'OU=reestrat groups,OU=groups for specprograms,DC=videoservaillance,DC=com'  # спец OU де є групи тільки для цієї проги
 
 gener_kilk_sprob_enter = 4  # загальна кількість невдалих спроб логування доменим користувачем
 failed_sproba_enter = 0

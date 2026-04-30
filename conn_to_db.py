@@ -91,6 +91,11 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"SELECT ukr_namestovp FROM {target_table} WHERE eng_namestovp = ?";
         return self.execute_query(query, (eng_name_stovpec,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж  
     
+    def get_english_stovp(self, table = None, ukr_namestovp = None):  # Видає англ назву стовпця за вказаним українскою назвою. Зворотня до методу get_display_ukrtext
+        target_table = self._get_target_table(table) 
+        query = f"SELECT eng_namestovp FROM {target_table} WHERE ukr_namestovp = ?";
+        return self.execute_query(query, (ukr_namestovp,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж 
+
     def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
         target_table = self._get_target_table(table)
         query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
@@ -166,10 +171,10 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
         return self.execute_query(query, (sub_cat_id,))
     
     # Цей метод виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search
-    def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text):
+    def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text, eng_criteria):
         query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
                     {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
-                     WHERE m.Artukyl LIKE ?;"""
+                     WHERE m.{eng_criteria[0][0]} LIKE ?;"""
         param = f"%{query_text}%"                  # захист від SQL Injection
         return self.execute_query(query, (param,))
     
