@@ -1,11 +1,8 @@
-import pyodbc   # some test comments
-import datetime # для сортування по даті
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit, QGroupBox,
                              QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout, QRadioButton,
                              QPushButton, QHeaderView, QFrame, QAbstractItemView, QMessageBox)
 from PyQt6.QtGui import QFont, QColor
 from constants import *
-from decimal import Decimal    # без цього не йде сортування в таблиці по колонці ціна
 from conn_to_db import ZaputuCategoriesDB, ZaputuProductDB  # клас для підключення до бд
 from dodat_classes import InputValidator, DialogWindow, TableManager, WorkwithWidgets  #  звертаємося до статичних методів класів помічників, щоб не створ екземпляр класу
 from registr_error import logger_db_conn   # регистрація помилок в файл

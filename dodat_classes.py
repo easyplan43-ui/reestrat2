@@ -92,8 +92,7 @@ class FileManager:
             return os.path.dirname(sys.executable)     # Це коли використано - auto-py-to-exe, бо він додає прапорець 'frozen' 
         else:
             return os.path.dirname(os.path.abspath(__file__))   # Це коли простий запуск Run або python main.py
-           
-
+   
 class InputValidator:  # Клас-помічник
     @staticmethod   #  Декоратор, дозволяє викликати метод apply без створення екземпляра класу (просто InputValidator.check_entered_data(...))
     def check_entered_data(widget, datatype, size):   # це звичайна функція, яку просто «сховали» всередину класу для кращої організації коду.

@@ -13,6 +13,10 @@ class Controller():   # Класс-контроллер для управлен�
         self.main_wind = main_window
         self.dict_name_btns_submenu = self.load_name_btns_from_json()   # виклик функцію по загрузці назв кнопок submenu із json файла 'submenu_buttons.json'
         self.setup_connections()
+
+    def _get_config_path(self):               #  Приватний метод для отримання шляху до файлу submenu_buttons.json
+        base_path = FileManager.return_path()   # зверт до декоратора класу FileManager, як до звич функції, щоб отримати шлях який залеж від способу запуску проги
+        return os.path.join(base_path, SUBMENU_FILE)  # Вертає абсолютный путь к файлу конфигурации 'users_roles.yaml'   
      
     def setup_connections(self):         # Cвязывает нажатие кнопки в боковой панели с вызовом функции, которая отображает подменю.
         self.main_wind.sidebar.btn_sales.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Sales"]))
@@ -36,35 +40,34 @@ class Controller():   # Класс-контроллер для управлен�
         self.main_wind.close()
 
     def load_name_btns_from_json(self):   # вертає у вигляді словника прочитані дані з json файлу: SUBMENU_FILE а саме імена кнопок підменю
-        base_path = FileManager.return_path() # зверт до декоратора класу FileManager, як до звич функції, щоб отримати шлях
-        config_path = os.path.join(base_path, SUBMENU_FILE)   # Створюєм абсолютный путь к файлу конфигурации 'users_roles.yaml' 
+        conf_path = self._get_config_path() # зверт до внутр служб методу який вертає шлях виду c:\Users\nikolay.lavrov.VIDEOSERV\Documents\GitHub\reestrat2\submenu_buttons.json
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f) # Вертає прочитані дані із файлу submenu_buttons.json, які перетворені у словник або список
+            with open(conf_path, 'r', encoding='utf-8') as f:
+                return  json.load(f) # Вертає прочитані дані із файлу submenu_buttons.json, які перетворені у словник або список - вміст всього файлу
         except FileNotFoundError:
-           DialogWindow.form_dialog_wind("Помилка", f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом:\n{config_path}", QMessageBox.Icon.Critical)
-           logger_configfile_conn.error(f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом: {config_path}")   # logger_main_conn з файлу ragistr_er
+           DialogWindow.form_dialog_wind("Помилка", f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом:\n{conf_path}", QMessageBox.Icon.Critical)
+           logger_configfile_conn.error(f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом: {conf_path}")   # logger_main_conn з файлу ragistr_er
            sys.exit(1)    # закриваємо саму прогу
         except Exception as e:
            DialogWindow.form_dialog_wind("Помилка", f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю.", QMessageBox.Icon.Warning)
            logger_configfile_conn.error(f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю: {e}")   # logger_main_conn з файлу ragistr_error
            sys.exit(1)    # закриваємо саму прогу
-       
-    def save_name_btns_in_json(self):    # Динамічно зберігаємо/оновлюємо назви кнопок submenu через інтерфейс самої програми і зберіг ці зміни в json файлі
-        base_path = FileManager.return_path() # зверт до декоратора класу FileManager, як до звич функції, щоб отримати шлях
-        config_path = os.path.join(base_path, SUBMENU_FILE)   # Створюєм абсолютный путь к файлу конфигурации 'users_roles.yaml' 
-        try:
-           with open(config_path, 'w', encoding='utf-8') as f:
-             # indent=4 робить файл "красивим" для читання людиною
-             json.dump(self.dict_name_btns_submenu, f, ensure_ascii=False, indent=4)
-        except FileNotFoundError:
-           DialogWindow.form_dialog_wind("Помилка", f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом:\n{config_path}", QMessageBox.Icon.Critical)
-           logger_configfile_conn.error(f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом: {config_path}")   # logger_main_conn з файлу ragistr_erro
-           sys.exit(1)    # закриваємо саму прогу
-        except Exception as e:
-           DialogWindow.form_dialog_wind("Помилка", f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю.", QMessageBox.Icon.Warning)
-           logger_configfile_conn.error(f"Помилка у структурі файлу {SUBMENU_FILE} формування підменю: {e}")   # logger_main_conn з файлу ragistr_erro
-           sys.exit(1)    # закриваємо саму прогу
+    
+    # Цей метод створить файл для загрузки кнопок підменю якщо відсутній основний файл submenu_buttons.json  і запише внього якийсь шаблон назв підкнопок  
+    #def save_name_btns_in_json(self):    # Динамічно зберігаємо/оновлюємо назви кнопок submenu через інтерфейс самої програми і зберіг ці зміни в json файлі
+    #    conf_path = self._get_config_path() # зверт до внутр служб методу який вертає шлях 
+    #    try:
+    #       with open(conf_path, 'w', encoding='utf-8') as f:
+    #         # indent=4 робить файл "красивим" для читання людиною
+    #         json.dump(self.dict_name_btns_submenu, f, ensure_ascii=False, indent=4)
+    #    except FileNotFoundError:
+    #       DialogWindow.form_dialog_wind("Помилка", f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом:\n{conf_path}", QMessageBox.Icon.Critical)
+    #       logger_configfile_conn.error(f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом: {conf_path}")   # logger_main_conn з файлу ragistr_erro
+    #       sys.exit(1)    # закриваємо саму прогу
+    #    except Exception as e:
+    #       DialogWindow.form_dialog_wind("Помилка", f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю.", QMessageBox.Icon.Warning)
+    #       logger_configfile_conn.error(f"Помилка у структурі файлу {SUBMENU_FILE} формування підменю: {e}")   # logger_main_conn з файлу ragistr_erro
+    #       sys.exit(1)    # закриваємо саму прогу
     
   
    
