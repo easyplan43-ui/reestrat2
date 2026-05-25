@@ -32,3 +32,10 @@ Table_category = f"{Schema}.Categories"   # Повна назва таблиці
 Table_main_product = f"{Schema}.Products"
 Table_tag = f"{Schema}.Tag_detail"
 Table_translate = f"{Schema}.Transl_stovpci"
+Table_translate2 = f"{Schema}.Transl_stovpci2"
+
+Schema2 = 'inventory'
+Table_typepoint = f"{Schema2}.Type_points"
+Table_skladu = f"{Schema2}.Skladu"
+
+File_conf_roles = 'users_roles.yaml'

@@ -1,11 +1,12 @@
-from PyQt6.QtWidgets import QDialog, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox, QCheckBox, QHBoxLayout, QFrame
-from PyQt6.QtWidgets import QMenuBar, QToolBar, QTabWidget  
+from PyQt6.QtWidgets import QDialog, QMainWindow, QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox, QHBoxLayout, QFrame
+from PyQt6.QtWidgets import QMenuBar, QToolBar, QTabWidget, QFormLayout  
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import QIcon
-from ldap3 import Server, Connection, ALL, SAFE_SYNC, SUBTREE, SIMPLE
+from ldap3 import Server, Connection, ALL, SUBTREE, NTLM
 from ldap3.core.exceptions import LDAPException, LDAPBindError 
 from controller import Controller 
+from dodat_classes import CheckBoxManager, DialogWindow
 from check_functions import instead_path_create_meipass
 from registr_error import logger_main_conn, logger_configfile_conn
 import os
@@ -18,56 +19,72 @@ from string_to_class import *
 class LoginWindow(QDialog):
     def __init__(self):      #  метод-КОНСТРУКТОР, автоматически вызываемый при создании нового экземпляра класса
         super().__init__()   # используется внутри метода __init__ дочернего класса для вызова конструктора родительского класса
+        print(f"[DEBUG] Створено нове вікно авторизації. ID об'єкта: {id(self)}")
         self.setWindowTitle("Вхід в Registrat")     # устанавливает текст в заголовке окна
         self.resize(width, height)   # Оптимальний розмір для вікна логіна з файлу  constants
-        layout = QVBoxLayout()      # создает вертикал контейнер, який автоматично выстраивает кнопки, метки, поля ввода сверху вниз в один столбец
+        layout = QFormLayout()      # Инициализируем форму вводу
         self.sproba_vhody = 0     # Це для кількості невдалих спроб введення паролю при логуванні
         self.dict_user_permis = {}  # словник який я використ в методі authenticate_ad, для подальшої передачі його в функцію main()
         self.dozvol_group_vhody = None  # передаю цей аргумент в клас UserConnectionInfobar, щоб вивести групу корист на екран в верхню стрічку
         self.full_name = None   # Фаміл Імя Отчество, яке передаємо на вивід у клас UserConnectInfoBar
+        
         self.user_input = QLineEdit()  #   создание виджета однострочного текстового поля для ЛОГИНА
         self.user_input.setMinimumHeight(30)  # Встановлює висоту 40 пікселів для поля воду логина
         self.current_user = os.getenv('USERNAME')  # Отримуємо логін з системи Windows
         self.user_input.setText(self.current_user)   # Встановлюємо текст та блокуємо редагування
         #self.user_input.setReadOnly(True) 
-        self.pass_input = QLineEdit(placeholderText="Пароль") # QLineEdit створює однорядкове поле для введення тексту 
-        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)
+        
+        self.pass_input = QLineEdit() # QLineEdit створює однорядкове поле для введення паролю
+        self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)  # перетвор букви в зірочки
         self.pass_input.setMinimumHeight(30)  # Встановлює висоту 30 пікселів для поля воду пароля
-        QTimer.singleShot(0, self.pass_input.setFocus)  # Відкладаєм выполнение setFocus на ничтожный срок (0 мс), чтобы Qt успел отрисовать окно
+        
         self.login_btn = QPushButton("Увійти")  # login_btn - змінна, яка зберігає посилання на кнопку "Увійти"
-        layout.addWidget(QLabel("Введіть пароль:"))  # создаем текстовую метку і добавляєм її в макет  
-        layout.addWidget(self.user_input)    # Добавляєм до контейн layout -  поле вводу логіна
-        layout.addWidget(self.pass_input)    # Добавляєм до контейн layout -  поле вводу пароля
 
-        self.show_password = QCheckBox("Показати пароль")    # Створюємо прапорець Checkbox.
-        self.show_password.toggled.connect(self.make_password_visibl)  # Когда пользователь нажимает на галочку "Показать пароль", срабатывает сигнал toggled. Он вызывает метод toggle_password_visibility
-        layout.addWidget(self.show_password)    # Добавляєм до контейн layout -  элемент Checkbox 
+        self.ekzemp_prap_show_pass =  CheckBoxManager("Показати пароль", checked_default = False)  # створ екземпляр класу по роботі із прапорцями
+        
+        layout.addRow("Введіть логін:", self.user_input) # створ текстову мітку "Введіть логін:" і звязує її із полем вводу self.user_input
+        layout.addRow("Введіть пароль:", self.pass_input)
+        layout.addRow(self.ekzemp_prap_show_pass)
+        layout.addRow(self.login_btn)                #  размещает кнопку на экране
+        
+        QTimer.singleShot(0, self.pass_input.setFocus)  # Відкладаєм выполнение setFocus на ничтожный срок (0 мс), чтобы Qt успел отрисовать окно
+       
         self.setLayout(layout)  # Керуй розташуванням елементів так, як прописано в цьому макеті layout, тут діє Автоматичне масштабування
+       
+        # ----------------------------------------------------- Сигнали --------------------------------------------------------------------------
         self.login_btn.clicked.connect(self.obrabotcuk_btn_login) # Когда пользователь нажмет на кнопку login_btn, программа должна автоматически выполнить функцию obrabotcuk_btn_login 
-        layout.addWidget(self.login_btn)     # Добавляєм до контейн layout -  кнопка  login_btn "Увійти"
-    
+        self.ekzemp_prap_show_pass.toggled.connect(self.make_password_visibl)  # Когда пользователь нажимает на галочку "Показать пароль", срабатывает сигнал toggled. Он вызывает метод make_password_visibl
+            
     def obrabotcuk_btn_login(self):     # Обработчик при нажатии на кнопку  btn_login  "Увійти" звертається до ф-ї authenticate_ad, яка провіряє чи вдала аутентиф
+        username = self.user_input.text()
+        password = self.pass_input.text()
         # Цей метод провіряє чи належить користувач до групи доступу чи ні. Тут реаліз. кількість спроб вводу неправильного паролю 4 рази
-        stat_in_AD, stat_this_progr = self.authenticate_ad(self.user_input.text(), self.pass_input.text())  #  self.user_input.text() - получения текста, который пользователь ввел в поле ввода
-        if stat_in_AD == True and stat_this_progr == True:  #  Користув  ввійшов в AD і має групу доступу до цієї проги
+        stat_in_AD, stat_this_progr = self.authenticate_ad(username, password)  #  
+        if stat_in_AD and stat_this_progr:  # Вар-1: Користув  ввійшов в AD і має групу доступу до цієї проги
             self.accept() # закриваємо вікно логування і передаємо сигнал програмі, що авторизація пройшла успішно, і можна відкривати головне вікно.
-        elif stat_in_AD == True and stat_this_progr == False:   #  Користув  ввійшов в AD але не має групу доступу до цієї проги
-            QMessageBox.critical(self, "Помилка", f"Користувач: {self.user_input.text()} не має доступу до цієї програми. Програма буде закрита.") 
-            logger_main_conn.error(f"Користувач: {self.user_input.text()} не має доступу до цієї програми.")   # logger з файлу ragistr_error
+            return
+        if stat_in_AD and not stat_this_progr:   # Вар-2  Користув  ввійшов в AD але не має групу доступу до цієї проги
+            QMessageBox.critical(self, "Помилка", f"Користувач: {username} не має доступу до цієї програми. Програма буде закрита.") 
+            logger_main_conn.error(f"Користувач: {username} не має доступу до цієї програми.")   # logger з файлу ragistr_error
             self.reject()  # Закриваємо вікно
-        elif stat_in_AD == False and stat_this_progr == True:  #  Користув  ввів неправильно логін/пароль і ми ще не знаємо чи має він якісь групи доступу
+            return
+        if not stat_in_AD and stat_this_progr:  #  Вар-3: Користув  ввів неправильно логін/пароль і ми ще не знаємо чи має він якісь групи доступу
             self.sproba_vhody = self.sproba_vhody + 1 
-            remaining_sprob = 4 - self.sproba_vhody  
             self.pass_input.clear()    # очищаємо поле вводу неправильного паролю
             self.pass_input.setFocus()    # встановлюємо курсор на поле вводу нового паролю
             if self.sproba_vhody >=4:
                 QMessageBox.critical(self, "Помилка", "Перевищено кількість спроб. Програма буде закрита.")
-                logger_main_conn.error(f"Перевищено кількість спроб входу для користувача: {self.user_input.text()}")   # logger з файлу ragistr_error
+                logger_main_conn.error(f"Перевищено кількість спроб входу для користувача: {username}")   # logger з файлу ragistr_error
                 self.reject()  # Закриваємо вікно
             else:
+                remaining_sprob = 4 - self.sproba_vhody
                 QMessageBox.warning(self, "Помилка", f"Невірний логін або пароль. Залишилося спроб: {remaining_sprob}") 
-        elif  stat_in_AD == False and stat_this_progr == False:    # Всякі помилки типу недоступний AD server і т. д.
+            return    
+        if not stat_in_AD and not stat_this_progr:    #  Вар-4: Всякі помилки типу недоступний AD server і т. д.
+                QMessageBox.critical(self, "Помилка зв'язку", "Не вдалося зв'язатися з сервером Active Directory. Перевірте мережу.")
+                logger_main_conn.critical(f"Помилка підключення до AD для користувача: {username}")
                 self.reject()  # Закриваємо вікно
+                return
                 
     def make_password_visibl(self, checked):  # Або показує пароль або ховає його зірочками
         if checked:
@@ -77,35 +94,45 @@ class LoginWindow(QDialog):
             # Приховуємо текст (крапки/зірочки)
             self.pass_input.setEchoMode(QLineEdit.EchoMode.Password)  # QLineEdit.Password - константа, указывающая, что символы должны быть замаскированы.    
 
-    def authenticate_ad(self, username, password):   # Аутентиф в AD і отримує групи до яких належ користувач і групи-доступу до цієї проги 
+    def authenticate_ad(self, username, password):   # Аутентиф в AD, не надсилаючи пароль до cd і отримує групи до яких належ користувач і групи-доступу до цієї проги 
+       #  Розкоментуй 3 нижніх рядки якщо ти хочеш щоб тільки юзер який залог в Windows той і зміг зайти в прогу
+       #if username.lower() != self.current_user.lower():  # Це умова, що до програми може зайти тільки той юзер який зайшов в Windows
+       #   QMessageBox.warning(None, "Увага", "Ви можете авторизуватися лише під своїм обліковим записом Windows!")
+       #   return False, False
+       if not username or not password:   # Захист від порожніх полів 
+           return False, True              # Трактуємо як невірний логін/пароль, тобто тут буде застос 4 спроби входу
        cd = f"ldap://{DOMAIN_CONTROLLERS}" 
        user_dn = f"{domain}\\{username}"
        try:
           server = Server(cd, get_info=ALL)  # створ обєкт сервера
-          conn = Connection(server, user=user_dn, password=password, auto_bind=True) #  auto_bind=True - Установить сетевое соединение с сервером і пройти аутентификацию под указанной учеткой 
-          if conn.bind():
-            users_groups = self.get_users_groups_inAD(username, conn)     # отримуємо всі групи по яких належит даний користув в AD який вже залогінився
-            necces_group_for_program = self.get_necces_groups_inAD(WHERE_SEARCH_GROUPS_FOR_THIS_PROGRAM, conn)  # отримуємо всі групи доступу з OU AD  до цієї проги
-            self.dozvol_group_vhody = set(users_groups) & set(necces_group_for_program)    #  шукаєм перетин двох множин і буде дозволена група/групи входу
-            if self.dozvol_group_vhody:  #  пройшов аутентифікацію в AD і він належить до дозволеної групи входу
+          with Connection(server, user=user_dn, password=password, authentication = NTLM) as conn:  
+             #  NTLM - не надсилати пароль від юзера до cd взагалі, а використовувати вбудовані механізмы Windows для безпечної перевірки (хешування)
+             if not conn.bind():      # Виконуємо аутентифікацію, якщо пароль невірний, .bind() поверне False без падіння програми
+                 return False, True   # Користувач НЕ пройшов автентифікацію в AD, але сервер працює 
+             
+             users_groups = self.get_users_groups_inAD(username, conn)     # отримуємо всі групи по яких належит даний користув в AD який вже залогінився
+             necces_group_for_program = self.get_necces_groups_inAD(WHERE_SEARCH_GROUPS_FOR_THIS_PROGRAM, conn)  # отримуємо всі групи доступу з OU AD  до цієї проги
+             self.dozvol_group_vhody = set(users_groups) & set(necces_group_for_program)    #  шукаєм перетин двох множин і буде дозволена група/групи входу
+             if self.dozvol_group_vhody:  #  пройшов аутентифікацію в AD і він належить до дозволеної групи входу
                  self.dict_user_permis = {  # тоді визнач його права в прозі,  словник типу : {'bychalt_role': True, 'sklad_role': True, 'admin_role': False, 'operat_role': True}
                    "bychalt_role":   self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "bychalt_role"),
                    "sklad_role":     self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "sklad_role"),
                    "admin_role":     self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "admin_role"),          # Це карта доступу
-                   "zakypiv_role":    self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "zakypiv_role"),
+                   "zakypiv_role":   self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "zakypiv_role"),
                    "kadru_role":     self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "kadru_role"),
-                   "prodaz_role":     self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "prodaz_role")
+                   "prodaz_role":    self.spivpadinja_groups_za_role(self.dozvol_group_vhody, "prodaz_role")
                  }
                  zrazok_search = f'(&(objectClass=person)(sAMAccountName={username}))'  # проста f строка
+                 #  Пошук повного імені (CN) користувача в AD                
                  conn.search(search_base=WHERE_SEARCH_USER, search_filter = zrazok_search, attributes=['cn'])  #  за логіном шукаємо повне імя cn корист в AD
-                 if conn.entries:
+                 if conn.entries:    # Безпечна перевірка: чи знайшли ми користувача в базі пошуку
                      full_cn_username = conn.entries[0]  # це довгий вивід типу cn=...............  Status ........
-                     self.full_name = full_cn_username.cn.value
-                     #self.full_name = str( full_cn_username.cn) # Це вже саме Фаміл імя Отчество ne yde na windows 2022 server
-                 conn.unbind()
+                     self.full_name = full_cn_username.cn.value  # Безпечне отримання значення для Windows Server 2022
+                 else:
+                     # Якщо cn не знайдено, ставимо логін як дефолтне ім'я, щоб програма не падала   
+                     self.full_name = username 
                  return True, True   #   Якщо корист залогінився в AD і корист має доступ до цієї проги 
-            elif (users_groups == [] or not self.dozvol_group_vhody):  # користув пройшов аутентифік в AD, але не входить до груп доступу
-                 conn.unbind()  #  означает завершение сессии и закрытие соединения с сервером.
+             else:      # користув пройшов аутентифік в AD, але не входить до груп доступу
                  return True, False  #   Якщо корист залогінився в AD але корист не має доступу до цієї проги
        except LDAPBindError as e:
                  return False, True    # Якщо користувач ввів неправильно логін/пароль
@@ -150,26 +177,18 @@ class LoginWindow(QDialog):
           base_path = os.path.dirname(sys.executable)     # Если программа скомпилирована
        else:
           base_path = os.path.dirname(os.path.abspath(__file__))   # Если запуск из исходного кода де __file__: переменная, содержащая путь к текущему файлу
-       config_path = os.path.join(base_path, 'users_roles.yaml')   # Створюєм абсолютный путь к файлу конфигурации 'users_roles.yaml' 
+       config_path = os.path.join(base_path, File_conf_roles)   # Створюєм абсолютный путь к файлу конфигурации 'users_roles.yaml' 
        try:
          with open(config_path, 'r', encoding='utf-8') as f:
             role_of_program = yaml.safe_load(f).get('roles', {})   # читаем файл и превращает его структуру в словарь . safe_load чтобы исключить выполнение произвольного кода из YAML-файла.
             vsi_groupu_za_role = role_of_program.get(role_name, [])  # Если ключ role_name есть в словаре role_of_program, метод вернет соответствующее ему значение.
             return any(group in users_group for group in vsi_groupu_za_role) # перевірка чи є хоча б одна група зі списку vsi_groupu_za_role у списку users_group. 
        except FileNotFoundError:
-         msg = QMessageBox(self)
-         msg.setIcon(QMessageBox.Icon.Critical)
-         msg.setWindowTitle("Помилка")
-         msg.setText(f"Файл конфігурації ролей не знайдено за шляхом:\n{config_path}")
-         msg.exec()
+         DialogWindow.form_dialog_wind("Помилка", f"Файл конфігурації ролей не знайдено за шляхом:\n{config_path}", QMessageBox.Icon.Critical)
          logger_configfile_conn.error(f"Файл конфігурації ролей не знайдено за шляхом: {config_path}")   # logger_main_conn з файлу ragistr_error
          sys.exit(1)    # закриваємо саму прогу
        except Exception as e:
-         msg = QMessageBox(self)
-         msg.setIcon(QMessageBox.Icon.Warning)
-         msg.setWindowTitle("Помилка YAML")
-         msg.setText(f"Помилка у структурі файлу конфігурації ролей: {e}")
-         msg.exec()
+         DialogWindow.form_dialog_wind("Помилка YAML", f"Помилка у структурі файлу {File_conf_roles} конфігурації ролей: {e}", QMessageBox.Icon.Critical)
          logger_configfile_conn.error(f"Помилка у структурі файлу конфігурації ролей: {e}")   # logger_main_conn з файлу ragistr_error
          sys.exit(1)    # закриваємо саму прогу
 

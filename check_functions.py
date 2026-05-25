@@ -9,4 +9,9 @@ def instead_path_create_meipass(relative_path):  # щоб не пропалда�
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+def search_val_in_dict(diction, key_to_search): # за вказаним key_to_search  шукає в словнику diction те саме key і виводить відпов value     
+        if key_to_search is None:
+            return None
+        return diction.get(key_to_search.lower()) # .lower() додано для захисту від помилок регістру
+
 

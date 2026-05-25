@@ -81,15 +81,15 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"SELECT name AS Column_Name FROM sys.columns WHERE object_id = OBJECT_ID('{target_table}');" 
         return self.execute_query(query)   
 
-    def get_name_table_by_tag(self, table = None, tag_table = None):    #  Приймає тег і видає  назву таблиці, яка відпов цьому тегові
+    def get_tag_nametable(self, table = None):    #  Зчитує всю таблицю за раз і вертає tag, table_name,.....
         target_table = self._get_target_table(table)  
-        query = f"SELECT table_name FROM {target_table} WHERE tag = ?";  
-        return self.execute_query(query, (tag_table,))   # Виконуємо запит через курсор і передаємо tag_table  як кортеж 
+        query = f"SELECT tag, table_name FROM {target_table}";  
+        return self.execute_query(query)   # Виконуємо запит через курсор і передаємо tag, table_name  як кортеж 
     
-    def get_display_ukrtext(self, table = None, eng_name_stovpec = None): # Видае читабильний укр. текст при вводі даних в форму, за вказаним eng name_stovpec
+    def get_display_ukrtext2(self, table = None, sel_tabl = None):   # Зчитує табл перекладів стовпців на укр, одним махом 
         target_table = self._get_target_table(table) 
-        query = f"SELECT ukr_namestovp FROM {target_table} WHERE eng_namestovp = ?";
-        return self.execute_query(query, (eng_name_stovpec,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж  
+        query = f"SELECT eng_namestovp, ukr_namestovp FROM {target_table} WHERE table_name =?";
+        return self.execute_query(query, (sel_tabl,))   # повертає список кортежів типу[('назва_табл', 'eng_stovp', 'ukr_stovp'),.......і так до кінця таблиці 
     
     def get_english_stovp(self, table = None, ukr_namestovp = None):  # Видає англ назву стовпця за вказаним українскою назвою. Зворотня до методу get_display_ukrtext
         target_table = self._get_target_table(table) 
@@ -98,16 +98,19 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
 
     def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
         target_table = self._get_target_table(table)
-        query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-                   WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}'
-                       AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
-                       AND COLUMN_NAME NOT IN (
-                            SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
-                               JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
-                               ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
-                               AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
-                               WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
-                               AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}'); """
+        query = f"""SELECT T.ukr_namestovp, T.eng_namestovp, C.DATA_TYPE, COALESCE(C.CHARACTER_MAXIMUM_LENGTH, 
+             COLUMNPROPERTY(OBJECT_ID(C.TABLE_SCHEMA + '.' + C.TABLE_NAME), C.COLUMN_NAME, 'precision')) as [Length] 
+             FROM INFORMATION_SCHEMA.COLUMNS C LEFT JOIN [hardware].[Transl_stovpci2] T
+             ON LOWER(C.COLUMN_NAME) = LOWER(T.eng_namestovp) AND LOWER(T.table_name) = LOWER('{target_table}')
+             WHERE (C.TABLE_SCHEMA + '.' + C.TABLE_NAME) = '{target_table}'
+             AND COLUMNPROPERTY(OBJECT_ID(C.TABLE_SCHEMA + '.' + C.TABLE_NAME), C.COLUMN_NAME, 'IsIdentity') = 0
+             AND C.COLUMN_NAME NOT IN (
+                 SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
+                 JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
+                 ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
+                 AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
+                 WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                 AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}');"""
         return self.execute_query(query)
     
     def get_foreignkey(self, table = None):    # Отримуємо 1) - назву стовпця з властивістью Foreign key і 2) - назву стовпця на який 1 стовпець зсилається
@@ -126,6 +129,13 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                    WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}'
                        AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
+                       AND COLUMN_NAME NOT IN (
+                            SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
+                               JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
+                               ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
+                               AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
+                               WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                               AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}')
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
         return self.execute_query(query) 
  
@@ -136,7 +146,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                    AND DATA_TYPE IN ('varchar', 'nvarchar')"""
         return self.execute_query(query) 
     
-    def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
+    def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає англ назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
         # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys  
         target_table = self._get_target_table(table)
         query = f"""SELECT COLUMN_NAME, DATA_TYPE,  COALESCE(CHARACTER_MAXIMUM_LENGTH, 
@@ -152,6 +162,26 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                                WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
                                AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}'); """ 
         return self.execute_query(query)
+    
+    def get_neccess_stovpci_and_typejoin(self, table = None): # по назві таблиці вертає укр назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
+        # це той запит із join з таблицею перекладу назв стовпців на укр мову
+        # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys 
+        target_table = self._get_target_table(table)
+        query = f"""SELECT T.ukr_namestovp, C.DATA_TYPE, COALESCE(C.CHARACTER_MAXIMUM_LENGTH, 
+             COLUMNPROPERTY(OBJECT_ID(C.TABLE_SCHEMA + '.' + C.TABLE_NAME), C.COLUMN_NAME, 'precision')) as [Length] 
+             FROM INFORMATION_SCHEMA.COLUMNS C LEFT JOIN [hardware].[Transl_stovpci2] T
+             ON LOWER(C.COLUMN_NAME) = LOWER(T.eng_namestovp) AND LOWER(T.table_name) = LOWER('{target_table}')
+             WHERE (C.TABLE_SCHEMA + '.' + C.TABLE_NAME) = '{target_table}'
+             AND COLUMNPROPERTY(OBJECT_ID(C.TABLE_SCHEMA + '.' + C.TABLE_NAME), C.COLUMN_NAME, 'IsIdentity') = 0
+             AND C.DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')
+             AND C.COLUMN_NAME NOT IN (
+                 SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
+                 JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
+                 ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
+                 AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
+                 WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
+                 AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}');"""
+        return self.execute_query(query)
         
 class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються категорій до бд
     def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id і її tag щоб знати яку таблицю використ: чи Process_det чи Memory_det, ...
@@ -161,6 +191,11 @@ class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і міс
     def get_subcategory_by_id(self, id):   #  Отримуємо назви підкатегорій товару за вказаним id
         query = f"SELECT Catid, Catname FROM {self._name_table} WHERE Parentid = ?;"
         return self.execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
+
+class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються типів точок  до бд
+    def get_type_points(self):       # Зчитує табл типів точок продажу, складів одним запитом цілу таблицю
+        query = f"SELECT [Type] FROM {self._name_table};"
+        return self.execute_query(query)
 
 class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і містить методи із запитами які виводять дані про продукт із двох таблиць JOIN  
     # Цей метод виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку:

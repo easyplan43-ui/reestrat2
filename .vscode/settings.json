@@ -1,5 +1,10 @@
 {
     "dataworkspace.excludedProjects": [
         "reestrat_db/reestrat_db/reestrat_db.sqlproj"
-    ]
+    ],
+    "python.testing.pytestArgs": [
+        "testu for metodiv"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
