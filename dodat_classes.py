@@ -39,7 +39,7 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
         self.dict_input = {}
         for key, inner_dict in diction.items():    #   inner_dict — це внутрішній словник {'type': 'varchar', 'size': 25}
             if key in ext_widgets:   # логіка для наприклад випад списку чи прапорця
-                pole_vvody = ext_widgets[key]
+                pole_vvody = ext_widgets[key]  # де pole_vvody типу: <dodat_classes.VupadSpusokManager object at 0x000002393BDDCE10> 
             else:    # Стандартна логіка для QLineEdit    
                 datatype = inner_dict.get('type')      # Безпечно дістаємо тип та розмір (якщо size немає, поверне None)
                 size = inner_dict.get('size')
@@ -64,15 +64,25 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
             return    # зупиняємо роботу
         # ЯКЩО ДАНІ ОК — ПРАЦЮЄМО З НИМИ ТУТ
         self.data_submitted.emit(users_data)   # активуємо наш сигнал і передаємо словник users_data усім хто на нього підписався
-        self.close()     # Закриваємо вікно форми
         
+        # Очищаємо поля вводу 
+        for name, field in self.dict_input.items():
+           if isinstance(field, VupadSpusokManager):
+              field.vupad_spusok.setCurrentIndex(0) # Скидаємо випадаючий список на найперший елемент (зазвичай це індекс 0)
+           elif isinstance(field, CheckBoxManager): 
+               field.setChecked(True)                 #  Скидаємо прапорець в True 
+           else:
+              field.clear()     # Для звичайних полів QLineEdit просто очищаємо текст
+               
     def receive_users_data_check_empty(self):   # Отримує користувацькі дані з форми вводу, перевіряє на пусті поля,
         list_empty_fields = []
         valid_dict = {}
         for name, field in self.dict_input.items(): # отрим дані від корист та фіксуємо пусті поля: де name = Назва точки, field = <PyQt6.QtWidgets.QLineEdit object at 0x000001C5B61477F0>  
             if isinstance(field, VupadSpusokManager): # якщо field належить до класу VupadSpusokManager
                 text_val = field.get_curr_data()  # виклик метод класу VupadSpusokManager який повертає вибране корист значення в випад списку 
-                if text_val is None:
+                if isinstance(text_val, list) and text_val:   # Якщо text_val є списком і він не пустий, беремо перший елемент
+                    text_val = text_val[0]   # зі списку ['val'] беремо тільки 'val'
+                if text_val is None:   # text_val типу 'Склад готової продукції'
                     text_val = ""   # Приводимо до порожнього рядка для уніфікації
             elif isinstance(field, CheckBoxManager): # якщо field належить до класу CheckBoxManager, це клас по роботі із прапорцями
                 # Для чекбокса пустих значень не буває (він або True, або False)
@@ -269,6 +279,17 @@ class DictManager:   # Клас-помічник по роботі із
             else:    # На випадок, якщо прилетить кортеж іншої довжини напр:  [('Artukyl', 'varchar', 25, 'NOT NULL', 'DEFAULT')] - 5 елементів  
                table_dict[row[0]] = row[1:] # якщо прил таке із 5 елем то буде таке: table_dict['Artukyl'] = ('varchar', 25, 'NOT NULL', 'DEFAULT'))
         return  table_dict  
+    
+    @staticmethod   # Обєднує два словники в один
+    def union_dicts(diction1, diction2): 
+            return diction1 | diction2 
+    
+    @staticmethod    # отрим словник типу {key:value, key2:value2} збирає в ньому всі value/value2,.. і створ зних список [value1, value2, ...]
+    def get_list_from_val_dict(data_dict):
+        list_val = []
+        for value in data_dict.values(): # values() - дай мені самі дані зі словника типу {key:value, key2:value2}
+            list_val.append(value) 
+        return  list_val   # повертає словник [value1, value2, ...]
 
 class CheckBoxManager(QCheckBox): # Клас реалізує прапорець
     def __init__(self, text="", checked_default = True, parent = None):   # text ="" відобраз праворуч від квадратика прапорця

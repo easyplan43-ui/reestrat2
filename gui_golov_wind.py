@@ -15,11 +15,10 @@ import yaml
 from constants import *
 from conn_to_db import *
 from string_to_class import *
-
 class LoginWindow(QDialog):
     def __init__(self):      #  метод-КОНСТРУКТОР, автоматически вызываемый при создании нового экземпляра класса
         super().__init__()   # используется внутри метода __init__ дочернего класса для вызова конструктора родительского класса
-        print(f"[DEBUG] Створено нове вікно авторизації. ID об'єкта: {id(self)}")
+        # print(f"[DEBUG] Створено нове вікно авторизації. ID об'єкта: {id(self)}")  перекон що лог вікно для кожного юзера окреме
         self.setWindowTitle("Вхід в Registrat")     # устанавливает текст в заголовке окна
         self.resize(width, height)   # Оптимальний розмір для вікна логіна з файлу  constants
         layout = QFormLayout()      # Инициализируем форму вводу

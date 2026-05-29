@@ -159,3 +159,30 @@ e:\python_programs\proj_reestrat\users_roles.yaml
 2026-05-25 03:30:18 - ERROR - [LogCheckMainConn] - Користувач: sergiy.lovochka не має доступу до цієї програми.
 2026-05-25 03:45:03 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом: c:\Users\nikolay.lavrov.VIDEOSERV\Documents\GitHub\reestrat2\Ausers_roles.yaml
 2026-05-25 03:46:09 - ERROR - [LogCheckConfFileConn] - Файл конфігурації ролей не знайдено за шляхом: c:\Users\nikolay.lavrov.VIDEOSERV\Documents\GitHub\reestrat2\Ausers_roles.yaml
+2026-05-25 21:42:11 - ERROR - [LogCheckMainConn] - Перевищено кількість спроб входу для користувача: nikolay.lavrov
+2026-05-25 21:42:37 - ERROR - [LogCheckMainConn] - Користувач: sergiy.lovochka не має доступу до цієї програми.
+2026-05-27 13:06:08 - ERROR - [LogCheckDBConn] - Не вдалося виконати запит до: inventory.Type_points . Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Incorrect syntax near ')'. (102) (SQLExecDirectW)")
+2026-05-27 13:06:08 - ERROR - [LogCheckDBConn] - Не сформований список кортежів для таблиці: inventory.Skladu
+2026-05-27 15:50:38 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 15:54:56 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 15:55:58 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:05:29 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:11:47 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:14:05 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:17:52 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:20:46 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:22:49 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 16:23:31 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-27 17:20:12 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 8 parameter markers, but 9 parameters were supplied', 'HY000')
+2026-05-28 01:40:37 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 6 parameter markers, but 5 parameters were supplied', 'HY000')
+2026-05-28 01:45:30 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 6 parameter markers, but 5 parameters were supplied', 'HY000')
+2026-05-28 01:51:52 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 6 parameter markers, but 5 parameters were supplied', 'HY000')
+2026-05-28 02:00:06 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('The SQL contains 1 parameter markers, but 5 parameters were supplied', 'HY000')
+2026-05-28 02:03:51 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:12:55 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:22:12 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:30:16 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:38:31 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:39:59 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 02:58:37 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]The INSERT permission was denied on the object 'Skladu', database 'vpn_serv01', schema 'inventory'. (229) (SQLExecDirectW)")
+2026-05-28 03:52:40 - ERROR - [LogCheckDBConn] -  Помилка бд при виконанні запиту. Детали: ('07002', '[07002] [Microsoft][ODBC Driver 18 for SQL Server]COUNT field incorrect or syntax error (0) (SQLExecDirectW)')

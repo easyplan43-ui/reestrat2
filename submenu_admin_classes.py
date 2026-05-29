@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLine
                              QHBoxLayout, QLabel, QTableWidget, QFormLayout,
                              QPushButton, QMessageBox, QApplication)
 from constants import *
-from conn_to_db import ZaputuTypepoint  # клас для підключення до бд
+from conn_to_db import ZaputuTypepoint, ZaputuSkladu  # клас для підключення до бд
 from dodat_classes import FormaVvody, TablManager, WorkwithWidgets, VupadSpusokManager, DictManager, DialogWindow, CheckBoxManager  #  звертаємося до статичних методів класів помічників, щоб не створ екземпляр класу
 from registr_error import logger_db_conn   # регистрація помилок в файл
 from style import STOCK_STYLE
@@ -10,6 +10,7 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
     def __init__(self):
         super().__init__()
         self.ekzemp_typepoint = ZaputuTypepoint(Table_typepoint)   # Створюємо екземпляр класу для роботи з типами точок, передаючи назву таблиці
+        self.ekzemp_skladu    = ZaputuSkladu(Table_skladu)  # Створ екземпляр класу для роботи зі складами а саме даними про них: назва, адреса, тип
         self.list_widgets = []
         self._init_ui() # метод дає дизайн і вигляд кнопок, випадаючих списків і форми вводу
 
@@ -43,14 +44,14 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         self.prepare_form_tabl_forma_vvody() #  динамічно будуємо і наповнюємо нашу форму з БД
         
         # -------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
-        # метод get_userdata_from_form є підписаний на сигнал data_submitted із класу FormaVvody 
+        # метод get_userdata_from_form є ПІДПИСАНИЙ на сигнал data_submitted із класу FormaVvody 
         self.ekzemp_forma_vvody.data_submitted.connect(self.get_userdata_from_form) 
-        #self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у випадаючому списку, показуємо sub список під головн випад списком
-
+       
     def get_userdata_from_form(self, data_user): #  метод викликается автомат, коли у формі вводу натискають 'Внести' і дані перевірені і він отрим дані з форми вводу
         # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
-        print(data_user)     #  де data_user = {'Назва точки': 'tocka33', 'Тип точки': ['Сервісний центр'], 'Місто': 'Lwow', 'Адреса': 'dancevica 4', 'Активний?': False}
-       
+        list_user_val = DictManager.get_list_from_val_dict(data_user) # виклик статич метод що вертає список даних які ввів користувач типу ['val1', 'val2', val3]
+        self.prepare_to_insert(list_user_val)   # підготовка до INSERT і сам INSERT і передача йому  list_user_val  
+         
     def prepare_form_tabl_forma_vvody(self): # підготовка формування таблиці виводу інфи або форми вводу, в залежності від дочірн класу
         list_kort= self.ekzemp_typepoint.get_neccess_stovpci_and_typejoin(Table_skladu)  # [('Назва точки', 'nvarchar', 50), ('Тип точки', 'nvarchar', 15), ('Місто', 'nvarchar', 20), ('Адреса', 'nvarchar', 50), ('Активний?', 'bit', 1)]
         if list_kort:
@@ -58,7 +59,7 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
            if dict_tabl:        # створ словник із ключем: "Тип точки" для випад списку і  "Активний?" для прапорця
                extern_wid_dict = {"Тип точки": self.ekzemp_vupad_spusok, "Активний?": self.ekzemp_checkbox} 
                self.ekzemp_forma_vvody.setup_form(dict_tabl, ext_widgets=extern_wid_dict)   #  формуємо форму вводу із випад списком
-               #WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+               WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
            else: 
                logger_db_conn.error(f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}")
                DialogWindow.form_dialog_wind("Помилка", f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}", QMessageBox.Icon.Warning)
@@ -66,5 +67,27 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         else:
             logger_db_conn.error(f"Не сформований список кортежів для таблиці: {Table_skladu}")
             DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_skladu}", QMessageBox.Icon.Warning)
-            return     
-       
+            return 
+        
+    def prepare_to_insert(self, list_users_data):
+        list_korteg_stovpciv_bez_id = self.ekzemp_skladu.get_all_stovp_bez_identity_datetime() # для таблиці Skladu отримуєм список стовпців, які підставляємо в INSERT
+        list_stovp_bez_id = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
+        kilk_stovp = len(list_korteg_stovpciv_bez_id)   #  Кількість стовпців головн таблиці які потрібно заповнити в запиті INSERT
+        result = self.ekzemp_skladu.insert_in_tables(list_stovp_bez_id, kilk_stovp, list_users_data) 
+        if result:  #  Якщо вставка даних в 2 таблиці пройшла успішно
+             QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
+        #     kilk_radkiv = self.table.rowCount()   #  возвращает общее количество строк, существующих в таблице на данный момент
+        #     self.table.insertRow(kilk_radkiv)  # физически создаем новую пустую строку в таблице QTableWidget
+        #     for nomer_col, data in enumerate(list_users_data[1:]):   # (0, Артикул) (1, Назва товару) (2, Опис) ,...... і пропуск id тому 1:
+        #         item_contain = QTableWidgetItem(str(data))  # Кожне значення завертаємо в спеціальний контейнер, бо інакше не можна закинути текст в табл
+        #         self.table.setItem(kilk_radkiv, nomer_col, item_contain)  # кладем созданный «контейнер» в конкретную ячейку: індекс_нов_строки, номер_колонки, само упаковане значення
+        #     self.table.scrollToBottom()    # Опционально: прокрутка к новой записи
+        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після успішного внесення в бд
+        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # ссилка на поле вводу QLineEdit
+        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є   
+        else:  #  Якщо дані не вставлені в бд   
+             ex = self.ekzemp_skladu.error_zaputy  # звертаюсь до атрибута класу WorkDB, щоб отримати код поилки з exceptiona в методі execute_query_insert
+             QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
+        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після не успішного внесення в бд
+        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # де  dict_stovp_type_size = (<PyQt6.QtWidgets.QLineEdit object at 0x000001FA4097A170>, 'varchar', 25)
+        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є        

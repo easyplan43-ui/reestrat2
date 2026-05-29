@@ -74,13 +74,14 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
        else: 
            return []    
 
-    def _union_dicts(self, diction1, diction2):  # Обєднує два словники в один
-        return diction1 | diction2    
-
     def get_userdata_from_form(self, data_user): #  метод викликается автомат, коли у формі вводу натискають 'Внести' і дані перевірені і він отрим дані з форми вводу
-        # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
-        print(data_user)     
-      
+       # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
+        list_user_val = DictManager.get_list_from_val_dict(data_user) # виклик статич метод що вертає список даних які ввів користувач типу ['val1', 'val2', val3]
+        self.prepare_to_insert(list_user_val)   # це передача  list_user_val через метод-заглушку peredacha_list на дочірній клас 
+
+    def prepare_to_insert(self, list_users_data):  # тут це метод-заглушка, для отримання і передачі списку list_users_data на дочірн клас
+        pass
+
     def prepare_form_sub_vupad_spus(self, data): # Підготовка до формування sub_vupad_spusok
         if data:    # Якщо вибрано реальний елемент (не дефолт)
             WorkwithWidgets.hide_widgets([self.widg_to_hide])
@@ -100,7 +101,7 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
             return False  #  продовж далі роботу в класах нащадках
         # Дальше пішло виконання на дочірні класи 
           
-class ZalushTovary(BasicSklad):    #   Реалізує вкладку  - "Склад" -  "Залишок товару" 
+class ZalushTovary(BasicSklad):    #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Залишок товару" ---------------------------- 
     def __init__(self):
         super().__init__()   # Виконати спочатку все що є в конструкторі базового касу 
         self._init_ui() # виклик початк методу з базового класу  дає дизайн і вигляд кнопок, випадаючих списків
@@ -170,7 +171,7 @@ class ZalushTovary(BasicSklad):    #   Реалізує вкладку  - "Ск�
         result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
         return result
     
-class InsertTovar(BasicSklad):    #---------------  Реалізує вкладку  - "Склад" -  "Внесення товару" -------------------------------------------
+class InsertTovar(BasicSklad):     #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Внесення товару" -------------------------------------------
     def __init__(self):
         super().__init__()    # Виконати спочатку все що є в конструкторі базового касу
         self._init_ui()       # метод дає дизайн і вигляд кнопок, випадаючих списків і форми вводу
@@ -203,12 +204,12 @@ class InsertTovar(BasicSklad):    #---------------  Реалізує вклад�
         self.main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
        
     #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо        
-    def  prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув форми вводу
+    def prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув форми вводу
         if super().prepare_form_tabl_forma_vvody():   #  # Викликаємо спільний код з базового класу і якщо True то,
             return # виходимо бо користув вибрав меню по замовченю у випад списку
         self.dict_stovp_main, self.dict_stovp_depend = self._get_ukr_dict_type(Table_tag) #  {'Артикул': {'type': 'varchar', 'size': 25}, 'Назва товару': {'type': 'nvarchar', 'size': 50},
         if self.dict_stovp_main and self.dict_stovp_depend: # Якщо є словники типу: {'Тип диска': {'type': 'varchar', 'size': 15}, "Обє'м Тб": {'type': 'int', 'size': 10}, 'Швидкість Мб/c': {'type': 'int', 'size': 10}}
-           gener_dict = self._union_dicts(self.dict_stovp_main, self.dict_stovp_depend)   # обєднуємо словники  в один з допом базового методу
+           gener_dict = DictManager.union_dicts(self.dict_stovp_main, self.dict_stovp_depend)   # обєднуємо словники  в один з допом базового методу
            if gener_dict:  # Якщо вдалося обєднати 2 словн в один: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
               self.ekzemp_forma_vvody.setup_form(gener_dict, ext_widgets = None)  #  формуємо форму вводу тільки з полями вводу, без всяких випад списків
               WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
@@ -227,7 +228,40 @@ class InsertTovar(BasicSklad):    #---------------  Реалізує вклад�
         else:    
             logger_db_conn.error(f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}") 
             DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}", QMessageBox.Icon.Warning) 
-            return []         
+            return [] 
+    
+    #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо 
+    def prepare_to_insert(self, list_users_data):
+        list_korteg_stovpciv_bez_id = self.ekzemp_category.get_all_stovp_bez_identity_datetime(Table_main_product) # для головн таблиці отримуєм список стовпців, які підставляємо в INSERT
+        list_stovp_bez_id_maintabl = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
+        list_korteg_all_stovp_depend_tabl = self.ekzemp_category.get_name_all_stovpciv_table(self.table_name_depend) # для залежн табл отримуємо список всіх стовпців
+        list_all_stovp_depend_tabl = ", ".join([f"[{item[0]}]" for item in list_korteg_all_stovp_depend_tabl]) # перетв з списку кортежів в список типу: [memid], [mem_type], [capacity], [speed]
+        kilk_stovp_main_tabl = len(list_korteg_stovpciv_bez_id)   #  Кількість стовпців головн таблиці які потрібно заповнити в запиті INSERT
+        kilk_stovp_depend_tabl = len(list_korteg_all_stovp_depend_tabl)
+        list_users_data.insert(0, self.sub_cat_id)     # Додаємо id на першу позиц., щоб вставити в табл Products
+        list_dani_main_tabl = list_users_data[:kilk_stovp_main_tabl]  # Зріс, тобто весь список ділимо на список для головн табл
+        list_dani_depend_tabl = list_users_data[kilk_stovp_main_tabl:] # Зріс, тобто список для залежн табл
+        placeholders_depend = "@LastInsId, " + ", ".join(["?"] * (kilk_stovp_depend_tabl - 1))
+        params =  list_dani_main_tabl + list_dani_depend_tabl  # це значення які ввів користувач + sub_cat_id 
+        # Нижче - виклик методу який вставл дані в бд з класу ZaputuProductDB, читати так: якщо True
+        result = self.ekzemp_product.insert_in_tables(self.table_name_depend, list_stovp_bez_id_maintabl, kilk_stovp_main_tabl, list_all_stovp_depend_tabl, placeholders_depend, params) 
+        if result:  #  Якщо вставка даних в 2 таблиці пройшла успішно
+             QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
+        #     kilk_radkiv = self.table.rowCount()   #  возвращает общее количество строк, существующих в таблице на данный момент
+        #     self.table.insertRow(kilk_radkiv)  # физически создаем новую пустую строку в таблице QTableWidget
+        #     for nomer_col, data in enumerate(list_users_data[1:]):   # (0, Артикул) (1, Назва товару) (2, Опис) ,...... і пропуск id тому 1:
+        #         item_contain = QTableWidgetItem(str(data))  # Кожне значення завертаємо в спеціальний контейнер, бо інакше не можна закинути текст в табл
+        #         self.table.setItem(kilk_radkiv, nomer_col, item_contain)  # кладем созданный «контейнер» в конкретную ячейку: індекс_нов_строки, номер_колонки, само упаковане значення
+        #     self.table.scrollToBottom()    # Опционально: прокрутка к новой записи
+        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після успішного внесення в бд
+        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # ссилка на поле вводу QLineEdit
+        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є   
+        else:  #  Якщо дані не вставлені в бд   
+             ex = self.ekzemp_product.error_zaputy  # звертаюсь до атрибута класу WorkDB, щоб отримати код поилки з exceptiona в методі execute_query_insert
+             QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
+        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після не успішного внесення в бд
+        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # де  dict_stovp_type_size = (<PyQt6.QtWidgets.QLineEdit object at 0x000001FA4097A170>, 'varchar', 25)
+        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є    
 
 class Peremichena(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Переміщення" 
     def __init__(self):

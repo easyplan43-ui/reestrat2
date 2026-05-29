@@ -129,13 +129,6 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
                    WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}'
                        AND COLUMNPROPERTY(OBJECT_ID(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 0
-                       AND COLUMN_NAME NOT IN (
-                            SELECT KCU.COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE KCU
-                               JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC 
-                               ON KCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
-                               AND KCU.TABLE_SCHEMA = TC.TABLE_SCHEMA
-                               WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
-                               AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}')
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
         return self.execute_query(query) 
  
@@ -231,6 +224,10 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
                         END CATCH"""
         return self.execute_query_insert(query, params)
         
-    
+class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви складів і їх адреси
+    def insert_in_tables(self, list_stovp_bez_id, kilk_stovp, params):
+        query = f"""INSERT INTO {self._name_table} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * kilk_stovp)});"""
+        return self.execute_query_insert(query, params)
+
    
 
