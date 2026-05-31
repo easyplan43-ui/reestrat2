@@ -239,16 +239,23 @@ class TablManager(QTableWidget):  # Клас по роботі із таблиц
            komirka.setData(Qt.ItemDataRole.EditRole, str(value) if value is not None else "") 
        return komirka 
     
-    def fill_table(self, rows):   # метод  по заповненю таблиці відобр даних
+    def fill_table(self, rows, bagatovum =  True):   # Заповнює таблицю відобр даних, rows може бути як простим списком так і списком кортежів/списків
         self.setSortingEnabled(False)   # Вимикаємо сортування на час заповнення, щоб програма не "гальмувала"
-        self.setRowCount(len(rows))     # Устанавливаем количество строк
-        for row_index, row_data in enumerate(rows): #   0 ('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), 'SAS-2', 360, 6000) 1 () 2 (),....
-           for col_index, value in enumerate(row_data): #  0 NVME-WD-720  1 Диск NVME Western Digital 720  2 PCIe 40  3 11  4 231.00 5 2026-03-31 04:43:06.980000
-              komirka = self.create_komirka(value)   #  Використовуємо метод для створення об'єкта комірки для таблиці
-              self.setItem(row_index, col_index, komirka) # Розміщуємо створений об'єкт комірки у конкретну клітинку таблиці
-        if self.sortyvatu:     # якщо сортування true   
-            self.setSortingEnabled(True)      
-
+        if bagatovum: # Коли на вх поступ список кортежів/списків, тобто [(),(),()] або [[],[],[]]
+           self.setRowCount(len(rows))     # Твердо встановлюємо количество строк
+           for row_index, row_data in enumerate(rows): #   0 ('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), 'SAS-2', 360, 6000) 1 () 2 (),....
+              for col_index, value in enumerate(row_data): #  0 NVME-WD-720  1 Диск NVME Western Digital 720  2 PCIe 40  3 11  4 231.00 5 2026-03-31 04:43:06.980000
+                 komirka = self.create_komirka(value)   #  Використовуємо метод для створення об'єкта комірки для таблиці
+                 self.setItem(row_index, col_index, komirka) # Розміщуємо створений об'єкт комірки у конкретну клітинку таблиці
+        else:         # Коли на вх поступає одновимір список, тобто [, , , , ] 
+           start_row = self.rowCount()         # Дізнаємося поточну кількість рядків яка вже є в таблиці бд, а під час першого виклику буде = 0
+           self.setRowCount(start_row + 1)     # Додаємо рівно одне порожнє місце внизу
+           for col_index, value in enumerate(rows): # де col_index = 0,1,2,3,.. value - значення яке ввів корист
+               komirka = self.create_komirka(value)
+               self.setItem(start_row, col_index, komirka)
+        if self.sortyvatu:
+           self.setSortingEnabled(True) 
+        
     def set_headers(self, stovpci):    # Налаштовує колонки та їх назви - шабка таблиці 
         self.setColumnCount(len(stovpci))   # Встановлюємо кількість колонок
         self.setHorizontalHeaderLabels(stovpci) # зверт до обєкту таблиці і встановл назви стовпців

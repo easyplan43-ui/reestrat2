@@ -59,7 +59,7 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
            if dict_tabl:        # створ словник із ключем: "Тип точки" для випад списку і  "Активний?" для прапорця
                extern_wid_dict = {"Тип точки": self.ekzemp_vupad_spusok, "Активний?": self.ekzemp_checkbox} 
                self.ekzemp_forma_vvody.setup_form(dict_tabl, ext_widgets=extern_wid_dict)   #  формуємо форму вводу із випад списком
-               WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+               #WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
            else: 
                logger_db_conn.error(f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}")
                DialogWindow.form_dialog_wind("Помилка", f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}", QMessageBox.Icon.Warning)
@@ -76,18 +76,7 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         result = self.ekzemp_skladu.insert_in_tables(list_stovp_bez_id, kilk_stovp, list_users_data) 
         if result:  #  Якщо вставка даних в 2 таблиці пройшла успішно
              QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
-        #     kilk_radkiv = self.table.rowCount()   #  возвращает общее количество строк, существующих в таблице на данный момент
-        #     self.table.insertRow(kilk_radkiv)  # физически создаем новую пустую строку в таблице QTableWidget
-        #     for nomer_col, data in enumerate(list_users_data[1:]):   # (0, Артикул) (1, Назва товару) (2, Опис) ,...... і пропуск id тому 1:
-        #         item_contain = QTableWidgetItem(str(data))  # Кожне значення завертаємо в спеціальний контейнер, бо інакше не можна закинути текст в табл
-        #         self.table.setItem(kilk_radkiv, nomer_col, item_contain)  # кладем созданный «контейнер» в конкретную ячейку: індекс_нов_строки, номер_колонки, само упаковане значення
-        #     self.table.scrollToBottom()    # Опционально: прокрутка к новой записи
-        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після успішного внесення в бд
-        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # ссилка на поле вводу QLineEdit
-        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є   
         else:  #  Якщо дані не вставлені в бд   
              ex = self.ekzemp_skladu.error_zaputy  # звертаюсь до атрибута класу WorkDB, щоб отримати код поилки з exceptiona в методі execute_query_insert
              QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
-        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після не успішного внесення в бд
-        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # де  dict_stovp_type_size = (<PyQt6.QtWidgets.QLineEdit object at 0x000001FA4097A170>, 'varchar', 25)
-        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є        
+              

@@ -97,10 +97,9 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
             WorkwithWidgets.hide_widgets(self.list_widgets) # Виклик Зовн статич метод з класу WorkwithWidgets, щоб сховати віджети
             return True  # заверш роботу бо корист вибрав категорію позамовченю
-        else: 
-            return False  #  продовж далі роботу в класах нащадках
-        # Дальше пішло виконання на дочірні класи 
-          
+        else:  # Якщо користув обрав якусь реальну не дефолтну категорію
+            return False
+            
 class ZalushTovary(BasicSklad):    #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Залишок товару" ---------------------------- 
     def __init__(self):
         super().__init__()   # Виконати спочатку все що є в конструкторі базового касу 
@@ -133,29 +132,21 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
         if self.dict_stovp_main and self.dict_stovp_depend: # Якщо є словники типу: {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, 'Назва товару': {'name': 'nazva_tov', 'type': 'nvarchar', 'size': 50}
             list_ukr_namestovp = self._get_list_col_name(self.dict_stovp_main, self.dict_stovp_depend, 'key')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
             if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
-                rows = self.select_prod()   # беремо з бази сирий рядок типу: [('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), .......
+                rows = self.select_prod()   # беремо з бази сирий рядок типу: [('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), 'SAS-2', 360, 6000), і тд до кінця табл
                 if not rows:
                    self.ekzemp_table.clear_table()   # Все строки, которые были в таблице, мгновенно удаляются
                    DialogWindow.form_dialog_wind("Помилка", f"Не вдалося прочитати дані із таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
                    return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
                 self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
-                self.ekzemp_table.fill_table(rows)  #  Заповнення таблиці даними
+                self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці даними
                 WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
             else: 
                 logger_db_conn.error(f"Не сформовано список українських назв стовпців")
                 DialogWindow.form_dialog_wind("Помилка", f"Не сформовано список українських назв стовпців", QMessageBox.Icon.Warning)
                 return []   
-        elif self.dict_stovp_main: 
-            logger_db_conn.error(f"Не сформований словник для таблиці: {self.table_name_depend}")
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
-            return []
-        elif self.dict_stovp_depend:
-            logger_db_conn.error(f"Не сформований словник для таблиці: {Table_main_product}")
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product}", QMessageBox.Icon.Warning)
-            return []
         else:    
-            logger_db_conn.error(f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}") 
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}", QMessageBox.Icon.Warning) 
+            logger_db_conn.error(f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}") 
+            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}", QMessageBox.Icon.Warning) 
             return []         
 
     def select_prod(self):  # Підгот служб дані для SELECT і виклик метод, який виводить з обох таблиць: main і depend інфу в таблицу на екрані
@@ -192,8 +183,9 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
         left_panel_ins_data.addStretch() # Притиснути все вгору
 
         # right_panel_table.addWidget(self.ostani_vvedena)  # текст останні введення додаємо
-        #right_panel_table.addWidget(self.table)       
-        self.list_widgets = [self.ekzemp_forma_vvody] # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу 
+        right_panel_table.addWidget(self.ekzemp_table, stretch=1)     #  stretch=1 означає "забрати все вільне місце"
+         
+        self.list_widgets = [self.ekzemp_forma_vvody, self.ekzemp_table] # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу 
         WorkwithWidgets.hide_widgets([self.ekzemp_sub_vupad_spusok] + self.list_widgets)# # self.btn_addto_sklad, self.ostani_vvedena, self.table])
              
         # Додаємо панелі в головний лейаут
@@ -210,24 +202,16 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
         self.dict_stovp_main, self.dict_stovp_depend = self._get_ukr_dict_type(Table_tag) #  {'Артикул': {'type': 'varchar', 'size': 25}, 'Назва товару': {'type': 'nvarchar', 'size': 50},
         if self.dict_stovp_main and self.dict_stovp_depend: # Якщо є словники типу: {'Тип диска': {'type': 'varchar', 'size': 15}, "Обє'м Тб": {'type': 'int', 'size': 10}, 'Швидкість Мб/c': {'type': 'int', 'size': 10}}
            gener_dict = DictManager.union_dicts(self.dict_stovp_main, self.dict_stovp_depend)   # обєднуємо словники  в один з допом базового методу
-           if gener_dict:  # Якщо вдалося обєднати 2 словн в один: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
+           if gener_dict:  # Якщо вдалося обєднати 2 словн в один: 
               self.ekzemp_forma_vvody.setup_form(gener_dict, ext_widgets = None)  #  формуємо форму вводу тільки з полями вводу, без всяких випад списків
               WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
            else: 
                 logger_db_conn.error(f"Не вдалося сформувати обєднаний словник стовпців")
                 DialogWindow.form_dialog_wind("Помилка", f"Не вдалося сформувати обєднаний словник стовпців", QMessageBox.Icon.Warning)
                 return []     
-        elif self.dict_stovp_main: 
-            logger_db_conn.error(f"Не сформований словник для таблиці: {self.table_name_depend}")
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
-            return []
-        elif self.dict_stovp_depend:
-            logger_db_conn.error(f"Не сформований словник для таблиці: {Table_main_product}")
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product}", QMessageBox.Icon.Warning)
-            return []
         else:    
-            logger_db_conn.error(f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}") 
-            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиць: {Table_main_product} і {self.table_name_depend}", QMessageBox.Icon.Warning) 
+            logger_db_conn.error(f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}") 
+            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}", QMessageBox.Icon.Warning) 
             return [] 
     
     #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо 
@@ -238,31 +222,35 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
         list_all_stovp_depend_tabl = ", ".join([f"[{item[0]}]" for item in list_korteg_all_stovp_depend_tabl]) # перетв з списку кортежів в список типу: [memid], [mem_type], [capacity], [speed]
         kilk_stovp_main_tabl = len(list_korteg_stovpciv_bez_id)   #  Кількість стовпців головн таблиці які потрібно заповнити в запиті INSERT
         kilk_stovp_depend_tabl = len(list_korteg_all_stovp_depend_tabl)
-        list_users_data.insert(0, self.sub_cat_id)     # Додаємо id на першу позиц., щоб вставити в табл Products
+        #list_users_data.insert(0, self.sub_cat_id)     # Додаємо id на першу позиц., щоб вставити в табл Products
         list_dani_main_tabl = list_users_data[:kilk_stovp_main_tabl]  # Зріс, тобто весь список ділимо на список для головн табл
         list_dani_depend_tabl = list_users_data[kilk_stovp_main_tabl:] # Зріс, тобто список для залежн табл
         placeholders_depend = "@LastInsId, " + ", ".join(["?"] * (kilk_stovp_depend_tabl - 1))
-        params =  list_dani_main_tabl + list_dani_depend_tabl  # це значення які ввів користувач + sub_cat_id 
-        # Нижче - виклик методу який вставл дані в бд з класу ZaputuProductDB, читати так: якщо True
-        result = self.ekzemp_product.insert_in_tables(self.table_name_depend, list_stovp_bez_id_maintabl, kilk_stovp_main_tabl, list_all_stovp_depend_tabl, placeholders_depend, params) 
+        params =  list_dani_main_tabl + list_dani_depend_tabl  # це значення які ввів користувач типу: ['AM5-GB-B477', 'Материнська плата Gigabyte B477', 'з потужною відеокартою', '18', '26', 'AM5', 'AMD D 7354', 'ATX', '3']
+        # Нижче - виклик методу який вставл дані в бд з класу ZaputuProductDB
+        result = self.ekzemp_product.insert_in_tables(self.table_name_depend, list_stovp_bez_id_maintabl, kilk_stovp_main_tabl, list_all_stovp_depend_tabl, placeholders_depend, [self.sub_cat_id] + params) 
         if result:  #  Якщо вставка даних в 2 таблиці пройшла успішно
              QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
-        #     kilk_radkiv = self.table.rowCount()   #  возвращает общее количество строк, существующих в таблице на данный момент
-        #     self.table.insertRow(kilk_radkiv)  # физически создаем новую пустую строку в таблице QTableWidget
-        #     for nomer_col, data in enumerate(list_users_data[1:]):   # (0, Артикул) (1, Назва товару) (2, Опис) ,...... і пропуск id тому 1:
-        #         item_contain = QTableWidgetItem(str(data))  # Кожне значення завертаємо в спеціальний контейнер, бо інакше не можна закинути текст в табл
-        #         self.table.setItem(kilk_radkiv, nomer_col, item_contain)  # кладем созданный «контейнер» в конкретную ячейку: індекс_нов_строки, номер_колонки, само упаковане значення
-        #     self.table.scrollToBottom()    # Опционально: прокрутка к новой записи
-        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після успішного внесення в бд
-        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # ссилка на поле вводу QLineEdit
-        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є   
+             self.show_recent_date(params)  # метод який показує введенні дані користув в таблиці справа
         else:  #  Якщо дані не вставлені в бд   
              ex = self.ekzemp_product.error_zaputy  # звертаюсь до атрибута класу WorkDB, щоб отримати код поилки з exceptiona в методі execute_query_insert
              QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
-        #     for stovpec in self.dict_stovp_type_size:    #  Очистка всіх полів вводу після не успішного внесення в бд
-        #         pole_vvody = self.dict_stovp_type_size[stovpec][0]   # де  dict_stovp_type_size = (<PyQt6.QtWidgets.QLineEdit object at 0x000001FA4097A170>, 'varchar', 25)
-        #         pole_vvody.clear()   # Очистка поля вводу/форми вводу коли Insert пройшов вдало і невдало, наприкл коли вставка Artukyla який вже є    
-
+       
+    def show_recent_date(self, users_data):  # Виводить дані які вводить корист щоразу у таблицю виводу
+        list_ukr_namestovp = self._get_list_col_name(self.dict_stovp_main, self.dict_stovp_depend, 'key')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
+        if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
+            if not users_data:
+                self.ekzemp_table.clear_table()   # Все строки, которые были в таблице, мгновенно удаляются
+                DialogWindow.form_dialog_wind("Помилка", f"Не вдалося прочитати дані із таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
+                return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
+            self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
+            self.ekzemp_table.fill_table(users_data, bagatovum=False)  #  Заповнення таблиці даними, False тому що простий список
+            WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+        else: 
+            logger_db_conn.error(f"Не сформовано список українських назв стовпців")
+            DialogWindow.form_dialog_wind("Помилка", f"Не сформовано список українських назв стовпців", QMessageBox.Icon.Warning)
+            return [] 
+  
 class Peremichena(QMainWindow):    #   Реалізує вкладку  - "Склад" -  "Переміщення" 
     def __init__(self):
         super().__init__()
