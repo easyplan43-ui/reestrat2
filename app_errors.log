@@ -194,3 +194,6 @@ e:\python_programs\proj_reestrat\users_roles.yaml
 2026-05-29 14:48:47 - ERROR - [LogCheckDBConn] - Не вдалося виконати запит до: hardware.Products . Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Incorrect syntax near ')'. (102) (SQLExecDirectW)")
 2026-05-29 14:48:48 - ERROR - [LogCheckDBConn] - Не сформований словник для таблиці: hardware.Products
 2026-05-30 03:24:29 - ERROR - [LogCheckMainConn] - Перевищено кількість спроб входу для користувача: nikolay.lavrov
+2026-05-31 18:46:01 - ERROR - [LogCheckMainConn] - Користувач: nikolay.lavrov не має доступу до цієї програми.
+2026-06-01 03:41:31 - ERROR - [LogCheckDBConn] - Не вдалося виконати запит до: hardware.Products . Детали: ('42000', "[42000] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Incorrect syntax near ')'. (102) (SQLExecDirectW)")
+2026-06-01 03:41:31 - ERROR - [LogCheckDBConn] - Не сформований словник для таблиці: hardware.Products або hardware.Storage_det

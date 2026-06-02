@@ -12,6 +12,7 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         self.ekzemp_typepoint = ZaputuTypepoint(Table_typepoint)   # Створюємо екземпляр класу для роботи з типами точок, передаючи назву таблиці
         self.ekzemp_skladu    = ZaputuSkladu(Table_skladu)  # Створ екземпляр класу для роботи зі складами а саме даними про них: назва, адреса, тип
         self.list_widgets = []
+        self.dict_tabl = {}  # буде зберігати це {'Назва точки': {'type': 'nvarchar', 'size': 50}, 'Тип точки': {'type': 'nvarchar', 'size': 15},
         self._init_ui() # метод дає дизайн і вигляд кнопок, випадаючих списків і форми вводу
 
     def _init_ui(self):
@@ -34,9 +35,9 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         left_panel_ins_data.addStretch() # Притиснути все вгору
         
         #right_panel_table.addWidget(self.ostani_vvedena)  # текст останні введення додаємо
-        #right_panel_table.addWidget(self.ekzemp_table)  
+        right_panel_table.addWidget(self.ekzemp_table)  
         self.list_widgets = [self.ekzemp_forma_vvody] # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу      
-        #WorkwithWidgets.hide_widgets([self.ekzemp_forma_vvody, self.ostani_vvedena, self.ekzemp_table])
+        WorkwithWidgets.hide_widgets(self.list_widgets)
              
         # Додаємо панелі в головний лейаут
         main_layout.addLayout(left_panel_ins_data, 2)  # 1 частина ширини
@@ -55,11 +56,11 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
     def prepare_form_tabl_forma_vvody(self): # підготовка формування таблиці виводу інфи або форми вводу, в залежності від дочірн класу
         list_kort= self.ekzemp_typepoint.get_neccess_stovpci_and_typejoin(Table_skladu)  # [('Назва точки', 'nvarchar', 50), ('Тип точки', 'nvarchar', 15), ('Місто', 'nvarchar', 20), ('Адреса', 'nvarchar', 50), ('Активний?', 'bit', 1)]
         if list_kort:
-           dict_tabl = DictManager.form_dictionary(list_kort)  # {'Назва точки': {'type': 'nvarchar', 'size': 50}, 'Тип точки': {'type': 'nvarchar', 'size': 15},
-           if dict_tabl:        # створ словник із ключем: "Тип точки" для випад списку і  "Активний?" для прапорця
+           self.dict_tabl = DictManager.form_dictionary(list_kort)  # {'Назва точки': {'type': 'nvarchar', 'size': 50}, 'Тип точки': {'type': 'nvarchar', 'size': 15},
+           if self.dict_tabl:        # створ словник із ключем: "Тип точки" для випад списку і  "Активний?" для прапорця
                extern_wid_dict = {"Тип точки": self.ekzemp_vupad_spusok, "Активний?": self.ekzemp_checkbox} 
-               self.ekzemp_forma_vvody.setup_form(dict_tabl, ext_widgets=extern_wid_dict)   #  формуємо форму вводу із випад списком
-               #WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+               self.ekzemp_forma_vvody.setup_form(self.dict_tabl, ext_widgets=extern_wid_dict)   #  формуємо форму вводу із випад списком
+               WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
            else: 
                logger_db_conn.error(f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}")
                DialogWindow.form_dialog_wind("Помилка", f"Не вдалося сформувати обєднаний словник стовпців для таблиці: {Table_skladu}", QMessageBox.Icon.Warning)
@@ -74,9 +75,27 @@ class InsNewSklad(QMainWindow):    #   Реалізує вкладку  - "Ад�
         list_stovp_bez_id = ", ".join([f"[{item[0]}]" for item in list_korteg_stovpciv_bez_id])  # перетв з списку кортежів в список типу: [Category_catid], [Artukyl], [Nazva_tov], [Description], [Kilkist], [Price]
         kilk_stovp = len(list_korteg_stovpciv_bez_id)   #  Кількість стовпців головн таблиці які потрібно заповнити в запиті INSERT
         result = self.ekzemp_skladu.insert_in_tables(list_stovp_bez_id, kilk_stovp, list_users_data) 
-        if result:  #  Якщо вставка даних в 2 таблиці пройшла успішно
+        if result:  #  Якщо вставка даних в таблицю пройшла успішно
              QMessageBox.information(self, "Успіх", "Дані успішно занесені в бд.")
+             self.show_recent_date(list_users_data)  # метод який показує введенні дані користув в таблиці справа
         else:  #  Якщо дані не вставлені в бд   
              ex = self.ekzemp_skladu.error_zaputy  # звертаюсь до атрибута класу WorkDB, щоб отримати код поилки з exceptiona в методі execute_query_insert
              QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
+
+    def show_recent_date(self, users_data):  # Виводить дані які вводить корист щоразу у таблицю виводу
+        list_ukr_namestovp = DictManager.get_list_by_key(self.dict_tabl, None, target = 'ukr')  # беремо назви стовпців в обох словниках і склад список укр назв стовпців
+        if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
+            if not users_data:
+                self.ekzemp_table.clear_table()   # Все строки, которые были в таблице, мгновенно удаляются
+                DialogWindow.form_dialog_wind("Помилка", f"Не вдалося прочитати дані із таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
+                return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
+            self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
+            self.ekzemp_table.fill_table(users_data, bagatovum=False)  #  Заповнення таблиці даними, False тому що простий список
+            WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+        else: 
+            logger_db_conn.error(f"Не сформовано список українських назв стовпців")
+            DialogWindow.form_dialog_wind("Помилка", f"Не сформовано список українських назв стовпців", QMessageBox.Icon.Warning)
+            return [] 
+  
+             
               

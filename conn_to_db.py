@@ -91,10 +91,10 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"SELECT eng_namestovp, ukr_namestovp FROM {target_table} WHERE table_name =?";
         return self.execute_query(query, (sel_tabl,))   # повертає список кортежів типу[('назва_табл', 'eng_stovp', 'ukr_stovp'),.......і так до кінця таблиці 
     
-    def get_english_stovp(self, table = None, ukr_namestovp = None):  # Видає англ назву стовпця за вказаним українскою назвою. Зворотня до методу get_display_ukrtext
-        target_table = self._get_target_table(table) 
-        query = f"SELECT eng_namestovp FROM {target_table} WHERE ukr_namestovp = ?";
-        return self.execute_query(query, (ukr_namestovp,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж 
+    #def get_english_stovp(self, table = None, ukr_namestovp = None):  # Видає англ назву стовпця за вказаним українскою назвою. Зворотня до методу get_display_ukrtext
+    #    target_table = self._get_target_table(table) 
+    #    query = f"SELECT eng_namestovp FROM {target_table} WHERE ukr_namestovp = ?";
+    #    return self.execute_query(query, (ukr_namestovp,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж 
 
     def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
         target_table = self._get_target_table(table)
@@ -132,11 +132,12 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                        AND DATA_TYPE NOT IN ('datetime', 'datetime2', 'timestamp')"""
         return self.execute_query(query) 
  
-    def get_all_stovp_varchar(self, table = None):  # Видає назви всіх стовпців з типом даних varchar або nvarchar
+    def get_all_stovp_varchar(self, table = None):  # Видає назви всіх стовпців з типом даних varchar або nvarchar, використ join
         target_table = self._get_target_table(table) 
-        query = f"""SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-                   WHERE (TABLE_SCHEMA + '.' + TABLE_NAME) = '{target_table}' 
-                   AND DATA_TYPE IN ('varchar', 'nvarchar')"""
+        query = f"""SELECT T.ukr_namestovp FROM INFORMATION_SCHEMA.COLUMNS C LEFT JOIN [hardware].[Transl_stovpci2] T
+             ON LOWER(C.COLUMN_NAME) = LOWER(T.eng_namestovp) AND LOWER(T.table_name) = LOWER('{target_table}')
+             WHERE (C.TABLE_SCHEMA + '.' + C.TABLE_NAME) = '{target_table}'
+             AND C.DATA_TYPE IN ('varchar', 'nvarchar');"""
         return self.execute_query(query) 
     
     def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає англ назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця

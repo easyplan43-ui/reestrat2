@@ -287,16 +287,32 @@ class DictManager:   # Клас-помічник по роботі із
                table_dict[row[0]] = row[1:] # якщо прил таке із 5 елем то буде таке: table_dict['Artukyl'] = ('varchar', 25, 'NOT NULL', 'DEFAULT'))
         return  table_dict  
     
-    @staticmethod   # Обєднує два словники в один
-    def union_dicts(diction1, diction2): 
+    @staticmethod   
+    def union_dicts(diction1, diction2):    # Обєднує два словники в один
             return diction1 | diction2 
     
-    @staticmethod    # отрим словник типу {key:value, key2:value2} збирає в ньому всі value/value2,.. і створ зних список [value1, value2, ...]
-    def get_list_from_val_dict(data_dict):
+    @staticmethod    
+    def get_list_from_val_dict(data_dict):  # отрим словник типу {key:value, key2:value2} збирає в ньому всі value/value2,.. і створ зних список [value1, value2, ...]
         list_val = []
         for value in data_dict.values(): # values() - дай мені самі дані зі словника типу {key:value, key2:value2}
             list_val.append(value) 
         return  list_val   # повертає словник [value1, value2, ...]
+    
+    @staticmethod
+    def get_list_by_key(dict_main, dict_dep, target): # служб унів метод на вхід прймає 1/2 словники типу  {'Артикул': {'type': 'varchar', 'size': 25}, 'Назва товару': {'type': 'nvarchar', 'size': 50},
+        # якщо два то обєднує іх в один словн, потім витягує із обєдн/одинар словника значення які я вказую в парам target і всі ці значення складає в новий список 
+       if dict_dep is None:   # Якщо другий словник не передали, робимо його порожнім словником
+           dict_dep = {}
+       if target == 'key' or target == 'ukr':    # Якщо потрібні ключі (українські назви)
+           return list(dict_main) + list(dict_dep) 
+       elif target == 0 or target == 'eng':  #  - 0 (або 'eng')   -> збирає 0-й елемент кортежу (наприклад, 'artukyl')
+           return [val[0] for val in dict_main.values()] + [val[0] for val in dict_dep.values()]
+       elif target == 1 or target == 'type':   #  - 1 (або 'type')  -> збирає 1-й елемент кортежу (наприклад, 'varchar') 
+           return [val[1] for val in dict_main.values()] + [val[1] for val in dict_dep.values()]
+       elif target ==2 or target == 'size':    #  - 2 (або 'size')  -> збирає 2-й елемент кортежу (наприклад, 25)
+           return [val[2] for val in dict_main.values()] + [val[2] for val in dict_dep.values()]
+       else: 
+           return []  
 
 class CheckBoxManager(QCheckBox): # Клас реалізує прапорець
     def __init__(self, text="", checked_default = True, parent = None):   # text ="" відобраз праворуч від квадратика прапорця

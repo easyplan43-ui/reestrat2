@@ -22,7 +22,7 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         self.dict_stovp_main = []    # Словник типу {'Artukyl': {'type': 'varchar', 'size': 25}, для головн табл
         self.dict_stovp_depend = []  # Словник типу {'stor_type': {'type': 'varchar', 'size': 15} для залежн табл 
         self.list_widgets = []
-        self.widg_to_hide = None     # Це я використ в методі prepare_form_sub_vupad_spus, де дочірні класи сюда перед різні віджети to hide
+        self.widg_to_hide = []     # Цей список я використ в методі prepare_form_sub_vupad_spus, де дочірні класи сюда перед різні віджети to hide
         self.pered_func_stovp = None  # для передачі назви методу, який зверт до бд і витягає назви потрібних стовп для кожного доч класу різні
 
         QApplication.instance().setStyleSheet(STOCK_STYLE)   # Встановлюємо стиль із файлу стилів
@@ -33,11 +33,8 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         self.ekzemp_vupad_spusok     = VupadSpusokManager(self.ekzemp_category.get_category_and_id, "Виберіть категорію товара") # Створ екземп класу по роботі з випад списками
         self.ekzemp_sub_vupad_spusok = VupadSpusokManager(self.ekzemp_category.get_subcategory_by_id, "Виберіть підкатегорію товара")
         self.ekzemp_table            = TablManager(sortyvatu = True)   # Створ екземп класу по роботі із таблицею відображення інфи на екрані
-        self.ekzemp_forma_vvody      =  FormaVvody()   # поле вводу разом із кнопкою, але сигнал для кнопки є в класі FormaVvody
-
+      
         # ------------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
-        # метод get_userdata_from_form є підписаний на сигнал data_submitted із класу FormaVvody 
-        self.ekzemp_forma_vvody.data_submitted.connect(self.get_userdata_from_form)  #  Коли у вікні форми вводу відбуд подія data_submitted, то запуск метод get_userdata_from_form
         self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире якийсь елем у випад_списку, показуємо sub список під головн випад списком
         self.ekzemp_sub_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю    
                
@@ -62,18 +59,6 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         dict_stovp_depend = self._get_spusok_stovp_transl(self.table_name_depend)     # {"Роз'єм/Сокет": {'name': 'socket', 'type': 'varchar', 'size': 30}, 'Кількість ядер': {'name': 'cores', 'type': 'int', 'size': 10}, 
         return dict_stovp_main, dict_stovp_depend 
     
-    def _get_list_col_name(self, dict_main, dict_dep, target): # унів метод для обєднання даних з двох словників у список
-       if target == 'key' or target == 'ukr':    # Якщо потрібні ключі (українські назви)
-           return list(dict_main) + list(dict_dep) 
-       elif target == 0:  #  - 0 (або 'eng')   -> збирає 0-й елемент кортежу (наприклад, 'artukyl')
-           return [val[0] for val in dict_main.values()] + [val[0] for val in dict_dep.values()]
-       elif target == 1:   #  - 1 (або 'type')  -> збирає 1-й елемент кортежу (наприклад, 'varchar') 
-           return [val[1] for val in dict_main.values()] + [val[1] for val in dict_dep.values()]
-       elif target ==2:    #  - 2 (або 'size')  -> збирає 2-й елемент кортежу (наприклад, 25)
-           return [val[2] for val in dict_main.values()] + [val[2] for val in dict_dep.values()]
-       else: 
-           return []    
-
     def get_userdata_from_form(self, data_user): #  метод викликается автомат, коли у формі вводу натискають 'Внести' і дані перевірені і він отрим дані з форми вводу
        # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
         list_user_val = DictManager.get_list_from_val_dict(data_user) # виклик статич метод що вертає список даних які ввів користувач типу ['val1', 'val2', val3]
@@ -84,7 +69,7 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
 
     def prepare_form_sub_vupad_spus(self, data): # Підготовка до формування sub_vupad_spusok
         if data:    # Якщо вибрано реальний елемент (не дефолт)
-            WorkwithWidgets.hide_widgets([self.widg_to_hide])
+            WorkwithWidgets.hide_widgets(self.widg_to_hide)  # з дочірн класу кажемо які віджети сховати
             cat_id, _, self.cat_tag, *_ = data  # 1 і 3 елем з data присвою cat_id, cat_tag, а все інше (скільки б там не було) піде в порожнечу _
             self.ekzemp_sub_vupad_spusok.add_items(cat_id)  # за cat_id виводимо id і назву sub_категорії  
             self.ekzemp_sub_vupad_spusok.show()
@@ -106,23 +91,38 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
         self._init_ui() # виклик початк методу з базового класу  дає дизайн і вигляд кнопок, випадаючих списків
                        
     def _init_ui(self):
-        search_layout    = QHBoxLayout()  #     Створюємо Горизонт панель де розміщено категорія і пошук 
-        #self.update_btn       = QPushButton("Оновити")    #    Створюємо кнопку Оновити дані з бд  
-        #self.search_input     = QLineEdit()    #  Це поле пошуку чогось / поле вводу 
-        #self.search_btn       = QPushButton("Пошук")     # --------------- Кнопка пошуку ----------
-        self.widg_to_hide = self.ekzemp_table # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати self.ekzemp_table
+        self.search_layout    = QHBoxLayout()            #     Створюємо Горизонт панель де розміщено категорія і пошук 
+        self.update_btn       = QPushButton("Оновити")   #    Створюємо кнопку Оновити дані з бд  
+        self.search_input     = QLineEdit()              #  Це поле пошуку чогось / поле вводу 
+        self.search_btn       = QPushButton("Пошук")     # Кнопка пошуку 
+        self.radio_btn = []    # Це Список радіокнопок, а не одна кнопка, які динамічно створюються для визнач критерію пошуку
         self.pered_func_stovp = self.ekzemp_product.get_all_stovp_bez_identity  # передаю назву метода який витяг назви стовп із бд
-        search_layout.addWidget(self.ekzemp_vupad_spusok)      # Екземпляр Випадаючого списоку додаємо до панелі пошуку інформації
-        search_layout.addWidget(self.ekzemp_sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
-        search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
-        search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
+        
+        self.search_layout.addWidget(self.ekzemp_vupad_spusok)      # Екземпляр Випадаючого списоку додаємо до панелі пошуку інформації
+        self.search_layout.addWidget(self.ekzemp_sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
+        self.search_layout.addWidget(self.update_btn)
+        self.form_radiobtns()       # Метод створює, формує радіокнопки і робить одну по замовченю обраною
+        self.widg_to_hide = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати self.ekzemp_table
+        self.search_layout.addWidget(self.search_input)
+        self.search_layout.addWidget(self.search_btn)
+        self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
+        self.search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
 
-        self.list_widgets = [self.ekzemp_table] # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу
+        self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу
+        
         WorkwithWidgets.hide_widgets([self.ekzemp_sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
-
-        self.main_layout.addLayout(search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
+        self.main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
+        
         self.main_layout.addWidget(self.ekzemp_table, stretch=1)   #  stretch=1 означає "забрати все вільне місце"
         self.main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
+
+        # ---------------------------------------------------------- Сигнали ------------------------------------------------------------------
+        self.update_btn.clicked.connect(self.prepare_form_tabl_forma_vvody)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю 
+        self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
+        for i in range(len(self.radio_btn)):
+            self.radio_btn[i].toggled.connect(lambda stan_btn, index=i: self.update_pidkazky(index, stan_btn))  # При виборі тої радіокнопки міняємо підказку в середині поля Search
+
+        self.update_pidkazky(0, True)  # Щоб вивело підказку в полі пошуку на самому початку виконання проги     
 
     #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо        
     def  prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув табл, підгот укр назв стовпців,
@@ -130,7 +130,7 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
             return # виходимо бо користув вибрав меню по замовченю у випад списку
         self.dict_stovp_main, self.dict_stovp_depend = self._get_ukr_dict_type(Table_tag)
         if self.dict_stovp_main and self.dict_stovp_depend: # Якщо є словники типу: {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, 'Назва товару': {'name': 'nazva_tov', 'type': 'nvarchar', 'size': 50}
-            list_ukr_namestovp = self._get_list_col_name(self.dict_stovp_main, self.dict_stovp_depend, 'key')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
+            list_ukr_namestovp = DictManager.get_list_by_key(self.dict_stovp_main, self.dict_stovp_depend, target = 'ukr')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
             if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
                 rows = self.select_prod()   # беремо з бази сирий рядок типу: [('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), 'SAS-2', 360, 6000), і тд до кінця табл
                 if not rows:
@@ -162,6 +162,38 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
         result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
         return result
     
+    def check_searched_text(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
+        vvedenuy_text = self.search_input.text().strip()   # Отримуємо текст з поля вводу і прибираємо зайві пробіли по боках
+        if not vvedenuy_text:  # Якщо поле порожнє — можна вивести попередження
+            DialogWindow.form_dialog_wind("Помилка", "Поле пошуку не може бути порожнім!", QMessageBox.Icon.Warning) # зверт до класу помічника по створ діалог вікна
+            return
+       
+        rows = self.search_in_db(vvedenuy_text)    # Якщо текст є — викликаємо метод пошуку в БД   
+        if not rows:  # якщо корист щось ввів але це не знайдено в бд
+            DialogWindow.form_dialog_wind("Увага", "Нічого не знайдено в базі!", QMessageBox.Icon.Information) # зверт до класу помічника по створ діалог вікна
+            self.search_input.clear()   # Очищаємо поле Search
+        else:    #  якщо корист щось ввів і це знайдено  в бд   
+            TablManager.fill_table(self.table, rows, bagatovum = False) # зверт до класу помічника по створеню і заповненю таблиці відображ даних на екрані
+            self.search_input.clear()   # Очищаємо поле Search
+            WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+
+    def form_radiobtns(self):  # Формує радіо-кнопки згідно запиту до таблиці в якій витягуємо всі стовпці типу varchar/nvarchar   
+        listcort_ukr_stovp = self.ekzemp_product.get_all_stovp_varchar() # Цей метод видає назви всіх стовпців з типом даних varchar або nvarchar, [('Артикул',), ('Назва товару',), ('Опис',)]    
+        for i, name in enumerate(listcort_ukr_stovp):
+            text_name = name[0]  # Витягуємо саме рядок з кортежу
+            btn = QRadioButton(text_name)   # Створюємо одну кнопку
+            self.radio_btn.append(btn)    #  До списку радіокнопок додаємо текучу кнопку
+            self.search_layout.addWidget(self.radio_btn[i])
+            if i == 0:
+                self.radio_btn[i].setChecked(True)  #  Першу радиокнопку робимо активною
+        #self.list_widgets.extend(self.radio_btn)  # до списку віджетів які ховаємо/показуємо додаємо список з радіокнопок    
+
+    def update_pidkazky(self, index, stan_btn):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
+        if stan_btn: 
+           current_name = self.radio_btn[index].text() # знаходимо в списку кнопку за номером index і прочитай текст - назву стовпця
+           self.search_input.setPlaceholderText(f"за {current_name}")    
+        
+    
 class InsertTovar(BasicSklad):     #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Внесення товару" -------------------------------------------
     def __init__(self):
         super().__init__()    # Виконати спочатку все що є в конструкторі базового касу
@@ -169,13 +201,14 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
 
     def _init_ui(self):
         self.cat_id = None      # id вибраної КАТЕГОРІЇ    з табл Categories, яке користув вибрав в main випадаючому списку, наприклад: Процесори, Диски,....
-        self.widg_to_hide = self.ekzemp_forma_vvody # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати форму вводу + кнопка до неї
         self.pered_func_stovp = self.ekzemp_product.get_neccess_stovpci_and_typejoin # передаю назву метода який витяг назви стовп із бд
         horuz_layout = QHBoxLayout() # Горизонтальний розподіл: Форма | Таблиця
         left_panel_ins_data = QVBoxLayout()       # ---------------- ЛІВА ПАНЕЛЬ (Введення даних + випадаючий список) -----------------
         right_panel_table = QVBoxLayout()  # тут буде таблиця яка відобр останні введення
         #self.ostani_vvedena = QLabel("📋 ОСТАННІ ВВЕДЕННЯ")   # Створює віджет (елемент інтерфейсу), який відображає текст 
-               
+        self.ekzemp_forma_vvody      =  FormaVvody()   # поле вводу разом із кнопкою, але сигнал для кнопки є в класі FormaVvody
+        self.widg_to_hide.append(self.ekzemp_forma_vvody) # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати форму вводу + кнопка до неї
+
         left_panel_ins_data.addWidget(QLabel("📦 КАТЕГОРІЯ"))  # Створює віджет (елемент інтерфейсу), який відображає текст або зображення. 
         left_panel_ins_data.addWidget(self.ekzemp_vupad_spusok)  # Екземп Випадаюч список додаємо до лівої панелі
         left_panel_ins_data.addWidget(self.ekzemp_sub_vupad_spusok)   #  Випадаюч sub список додаємо до лівої панелі
@@ -194,7 +227,11 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
 
         self.main_layout.addLayout(horuz_layout)  # горизон макет з формою вводу і таблицею стає частиною основного вертикального макета
         self.main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
-       
+
+        # -------------------------------------------------------- Сигнали -------------------------------------------------------------------------------
+         # метод get_userdata_from_form є підписаний на сигнал data_submitted із класу FormaVvody 
+        self.ekzemp_forma_vvody.data_submitted.connect(self.get_userdata_from_form)  #  Коли у вікні форми вводу відбуд подія data_submitted, то запуск метод get_userdata_from_form
+
     #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо        
     def prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув форми вводу
         if super().prepare_form_tabl_forma_vvody():   #  # Викликаємо спільний код з базового класу і якщо True то,
@@ -237,7 +274,7 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
              QMessageBox.critical(self, "Помилка", f" Помилка бд при виконанні запиту: {ex}") 
        
     def show_recent_date(self, users_data):  # Виводить дані які вводить корист щоразу у таблицю виводу
-        list_ukr_namestovp = self._get_list_col_name(self.dict_stovp_main, self.dict_stovp_depend, 'key')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
+        list_ukr_namestovp = DictManager.get_list_by_key(self.dict_stovp_main, self.dict_stovp_depend, target = 'ukr')  # беремо назви стовпців в обох словниках і склад список укр назв стовпців
         if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
             if not users_data:
                 self.ekzemp_table.clear_table()   # Все строки, которые были в таблице, мгновенно удаляются
