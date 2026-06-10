@@ -1,3 +1,9 @@
+#  Як використати! Дві перших строки напаши на початку файлу, куди ти будеш вставляти стилі
+# from PyQt6.QtWidgets import QApplication
+# from style import STOCK_STYLE
+# QApplication.instance().setStyleSheet(STOCK_STYLE)  а це вже напишеш в клас в def _init_ui(self): в якому буде цей стиль
+
+# Цей стиль для кнопок, таблиць в меню Склад
 STOCK_STYLE = """
             QMainWindow { background-color: #f4f4f9; }
             QLabel { font-size: 14px; color: #333; font-weight: bold; }
@@ -7,7 +13,35 @@ STOCK_STYLE = """
             QPushButton:hover { background-color: #8d9eb0; }                     /* при наведении */
             QTableWidget { background-color: white; border: 1px solid #ddd; }
         """
-#  Дві перших строки напаши на початку файлу, куди ти будеш вставляти стилі
-# from PyQt6.QtWidgets import QApplication
-# from style import STOCK_STYLE
-# QApplication.instance().setStyleSheet(STOCK_STYLE)  а це вже напишеш в клас в def _init_ui(self): в якому буде цей стиль
+# Як використати: 1)Оголошення - from style import SidebarButtonStyle; 2) Застоосув -  btn.setStyleSheet(SidebarButtonStyle.COMMON)
+class SidebarButtonStyle():  #  Описує тільки стиль, шрифт, розмір, колір лівосторонньої бічної панелі Sidebar з кнопками  
+    COMMON = """
+        QPushButton {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 15px;
+            text-align: left;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background-color: #34495e;
+        }
+        QPushButton:checked {
+            background-color: #3498db;
+            font-weight: bold;
+        }
+    """
+
+class SubmenuStyle:
+    PANEL = "background-color: #ecf0f1; border-right: 1px solid #bdc3c7;"
+    HEADER = "font-weight: bold; padding: 10px; background-color: #dcdde1;"
+    ITEM = """
+        QPushButton {
+            text-align: left;
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+        }
+        QPushButton:hover { background-color: #dcdde1; }
+    """

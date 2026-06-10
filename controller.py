@@ -19,22 +19,27 @@ class Controller():   # Класс-контроллер для управлен�
         return os.path.join(base_path, SUBMENU_FILE)  # Вертає абсолютный путь к файлу конфигурации 'users_roles.yaml'   
      
     def setup_connections(self):         # Cвязывает нажатие кнопки в боковой панели с вызовом функции, которая отображает подменю.
-        self.main_wind.sidebar.btn_sales.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Sales"]))
-        self.main_wind.sidebar.btn_purchases.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Purchases"]))
-        self.main_wind.sidebar.btn_stock.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Stock"]))
-        self.main_wind.sidebar.btn_person.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Person"]))
-        self.main_wind.sidebar.btn_salary.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Salary"]))
-        self.main_wind.sidebar.btn_reports.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Reports"]))
-        self.main_wind.sidebar.btn_settings.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Settings"]))
-        self.main_wind.sidebar.btn_admin.clicked.connect(lambda: self.show_submenu(NAME_BUTTONS["Admin"]))  
-        self.main_wind.sidebar.btn_exit.clicked.connect(lambda: self.exit_program())   
+        sidebar_buttons = self.main_wind.sidebar.dict_side_btn  # Отримуємо посилання на словник кнопок, які створені в бок панелі, силка веде через обєкт головн вікна на обєкт бок панелі
+        for key, btn in sidebar_buttons.items():    # Автоматично підключаємо всі кнопки, крім кнопки Exit
+            if key != "Exit":
+                btn.clicked.connect(lambda checked, k = key: self.show_submenu(k)) # при нажаті на кнопку виклик ф-ю show_submenu і в неї передаємо назву кнопки: Stock
+            if "Exit" in sidebar_buttons:
+               sidebar_buttons["Exit"].clicked.connect(lambda: self.exit_program()) 
         self.main_wind.submenu.hide_left_btn.clicked.connect(lambda: self.main_wind.submenu.hide())     
 
-    def show_submenu(self, category):    #  Показує динамічне підменю
-        self.category = category      # Зберігаємо в екземпляр класу
-        self.main_wind.submenu.create_dynamic_submenu(self.dict_name_btns_submenu[category])   #  Виклик функцію створення динамічних підменю із 'submenu_buttons.json'
-        # де self.dict_name_btns_submenu[category] = {'Залишки товарів': 'ZalushTovary', 'Переміщення': 'Peremichena', 'Інвентаризація': 'Inventariz', 'Списання': 'Spusanja', 'Оприбуткування': 'Oprubytkyv', 'Внесення товару': 'InsertTovar'}
-        self.main_wind.submenu.show()  # Показуємо віджет на екрані
+    def show_submenu(self, category):  #category зараз дорівнює "Stock", "Sales" тощо.
+       # Отримуємо українську назву з NAME_BUTTONS (для "Stock" це буде "Склад")
+       # Другий елемент кортежу NAME_BUTTONS[category][1] — це саме текст "Склад"
+       ukr_category_name = NAME_BUTTONS.get(category) # де  ukr_category_name типу: Склад, Звіти
+       print(ukr_category_name)
+       # Безпечно шукаємо дані в JSON-словнику за українською назвою
+       submenu_data = self.dict_name_btns_submenu.get(ukr_category_name) # де submenu_data це всі дані для кожного словника
+       # Відображаємо підменю, якщо воно знайдене
+       if submenu_data is not None:
+          self.main_wind.submenu.create_dynamic_submenu(submenu_data)
+          self.main_wind.submenu.show()
+       else:
+          self.main_wind.submenu.hide()
         
     def exit_program(self):  # Закриваем прогу при нажатии на кнопку Вихід
         self.main_wind.close()
@@ -52,22 +57,6 @@ class Controller():   # Класс-контроллер для управлен�
            DialogWindow.form_dialog_wind("Помилка", f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю.", QMessageBox.Icon.Warning)
            logger_configfile_conn.error(f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю: {e}")   # logger_main_conn з файлу ragistr_error
            sys.exit(1)    # закриваємо саму прогу
-    
-    # Цей метод створить файл для загрузки кнопок підменю якщо відсутній основний файл submenu_buttons.json  і запише внього якийсь шаблон назв підкнопок  
-    #def save_name_btns_in_json(self):    # Динамічно зберігаємо/оновлюємо назви кнопок submenu через інтерфейс самої програми і зберіг ці зміни в json файлі
-    #    conf_path = self._get_config_path() # зверт до внутр служб методу який вертає шлях 
-    #    try:
-    #       with open(conf_path, 'w', encoding='utf-8') as f:
-    #         # indent=4 робить файл "красивим" для читання людиною
-    #         json.dump(self.dict_name_btns_submenu, f, ensure_ascii=False, indent=4)
-    #    except FileNotFoundError:
-    #       DialogWindow.form_dialog_wind("Помилка", f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом:\n{conf_path}", QMessageBox.Icon.Critical)
-    #       logger_configfile_conn.error(f"Файл формування підменю: {SUBMENU_FILE} не знайдено за шляхом: {conf_path}")   # logger_main_conn з файлу ragistr_erro
-    #       sys.exit(1)    # закриваємо саму прогу
-    #    except Exception as e:
-    #       DialogWindow.form_dialog_wind("Помилка", f"Помилка у структурі файлу: {SUBMENU_FILE} формування підменю.", QMessageBox.Icon.Warning)
-    #       logger_configfile_conn.error(f"Помилка у структурі файлу {SUBMENU_FILE} формування підменю: {e}")   # logger_main_conn з файлу ragistr_erro
-    #       sys.exit(1)    # закриваємо саму прогу
     
   
    

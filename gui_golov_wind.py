@@ -12,6 +12,7 @@ from registr_error import logger_main_conn, logger_configfile_conn
 import os
 import sys
 import yaml
+from style import SidebarButtonStyle, SubmenuStyle
 from constants import *
 from conn_to_db import *
 from string_to_class import *
@@ -223,25 +224,6 @@ class MainWindow(QMainWindow):  # Работает как «сборщик»
         self.hor_layout.addWidget(self.vkladku_in_mainwind)  #  Добавляем вкладки які утворюються після натискання на submenu
         self.controller = Controller(self)       #  Cтворюєм новий обєкт класса Controller, передавая йому обєкт MainWindow, щоб контрол керував вікном MainWindow
 
-class SidebarButtonStyle():  #  Описує тільки стиль, шрифт, розмір, колір лівосторонньої бічної панелі Sidebar з кнопками  
-    COMMON = """
-        QPushButton {
-            background-color: #2c3e50;
-            color: white;
-            border: none;
-            padding: 15px;
-            text-align: left;
-            font-size: 14px;
-        }
-        QPushButton:hover {
-            background-color: #34495e;
-        }
-        QPushButton:checked {
-            background-color: #3498db;
-            font-weight: bold;
-        }
-    """
-
 class UpperMenu(QMenuBar):    # Створюємо строку меню, та що в горі: Файл, Правка, Операции, Сервис 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -259,34 +241,21 @@ class SidebarBase(QFrame):   #  Створює лівостор. бокову п
         layout = QVBoxLayout(self)  # Створення вертикал макету всередині панелі
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)  
-        self.btn_sales     = QPushButton(f"💰 {NAME_BUTTONS['Sales']}")   # Кнопки навігації 
-        self.btn_purchases = QPushButton(f"🛒 {NAME_BUTTONS['Purchases']}")
-        self.btn_stock     = QPushButton(f"📦 {NAME_BUTTONS['Stock']}")
-        self.btn_person    = QPushButton(f"👥 {NAME_BUTTONS['Person']}")
-        self.btn_salary    = QPushButton(f"💰 {NAME_BUTTONS['Salary']}")
-        self.btn_reports   = QPushButton(f"📊 {NAME_BUTTONS['Reports']}")
-        self.btn_settings  = QPushButton(f"⚙️ {NAME_BUTTONS['Settings']}")
-        self.btn_admin     = QPushButton(f"⚙️ {NAME_BUTTONS['Admin']}")
-        self.btn_exit      = QPushButton(f"🚪 {NAME_BUTTONS['Exit']}")
-        # Мапа відповідності: кнопка -> роль з файлу users_roles, яка її бачить
-        all_buttons = [               # Список кортежів .  ATTENTION!  Незабудь внести зміни ще й у def authenticate_ad в класі LoginWindow   
-            (self.btn_sales,     permissions.get('bychalt_role')  or permissions.get('admin_role')                                                                                                                 or permissions.get('prodaz_role')),
-            (self.btn_purchases,                                     permissions.get('admin_role')                                                                           or permissions.get('zakypiv_role')),
-            (self.btn_stock,                                         permissions.get('admin_role')  or permissions.get('sklad_role')),
-            (self.btn_person,    permissions.get('bychalt_role')  or permissions.get('admin_role')                                     or permissions.get('kadru_role')),
-            (self.btn_salary,    permissions.get('bychalt_role')  or permissions.get('admin_role')                                     or permissions.get('kadru_role')), 
-            (self.btn_reports,   permissions.get('bychalt_role')  or permissions.get('admin_role')  or permissions.get('sklad_role')                                                                               or permissions.get('prodaz_role')),
-            (self.btn_settings,                                      permissions.get('admin_role')), 
-            (self.btn_admin,                                         permissions.get('admin_role')),
-            (self.btn_exit,      permissions.get('bychalt_role')  or permissions.get('admin_role')  or permissions.get('sklad_role')   or permissions.get('kadru_role')     or permissions.get('zakypiv_role')    or permissions.get('prodaz_role')) ]
-        for btn, access in all_buttons:     # Налаштовуємо та додаємо тільки дозволені кнопки
+        self.dict_side_btn = {}       # Словник для збереження об'єктів кнопок
+        
+        for key, (icon, value, roles) in NAME_BUTTONS.items():     # Налаштовуємо та додаємо тільки дозволені кнопки
+            access = False  # Початково вважаємо що доступу у корист немає 
+            for role in roles: # де role - bychalt_role, admin_role, 
+                if permissions.get(role) == True:
+                    access = True
+                    break # зупиняємо перевірку на доступ бо юзер має доступ до хоча б однієї кнопки
             if access:
+                btn = QPushButton(f"{icon} {value}") # створ кнопку за шаблоном
                 btn.setCheckable(True)
                 btn.setAutoExclusive(True)   # При нажатии одной кнопки остальные автоматически отжимаются
                 btn.setStyleSheet(SidebarButtonStyle.COMMON)  # застосовуємо стиль взятий з класу  SidebarButtonStyle
                 layout.addWidget(btn)
-            else:
-                btn.deleteLater()   # Якщо доступу немає, видаляємо об'єкт, щоб не займав пам'ять
+                self.dict_side_btn[key] = btn # зберігаємо у словник для майбутнього доступу
         layout.addStretch()        
 
 class UserConnectInfoBar(QLabel):    # Виводить строку вгорі екрану де вказано: Корист login авториз до cd01 
@@ -369,16 +338,3 @@ class SubmenuBase(QFrame):    # Створює підменю від голов�
         self.main_wind.vkladku_in_mainwind.addTab(new_tab, btn_text)   # Додає віджет new_tab як нову вкладку до контейнера. Текст на самому «ярлику» вкладки буде взято зі змінної btn_text
         self.main_wind.vkladku_in_mainwind.setCurrentWidget(new_tab)  # Робить цю нову вкладку активною, щоб користувач відразу побачив її вміст після створення       
          
-class SubmenuStyle:
-    PANEL = "background-color: #ecf0f1; border-right: 1px solid #bdc3c7;"
-    HEADER = "font-weight: bold; padding: 10px; background-color: #dcdde1;"
-    ITEM = """
-        QPushButton {
-            text-align: left;
-            padding: 8px 20px;
-            border: none;
-            background: transparent;
-        }
-        QPushButton:hover { background-color: #dcdde1; }
-    """
-

@@ -147,7 +147,7 @@ class FileManager:
         else:
             return os.path.dirname(os.path.abspath(__file__))   # Це коли простий запуск Run або python main.py
    
-class InputValidator:  # Клас-помічник
+class InputValidator:  # Клас-помічник, використ його у момент динамічного створення віджету,  QLineEdit() - поля вводу
     @staticmethod   #  Декоратор, дозволяє викликати метод без створення екземпляра класу (просто InputValidator.check_entered_data(...))
     def check_entered_data(widget, datatype, size):   # це звичайна функція, яку просто «сховали» всередину класу для кращої організації коду.
         pattern = ""  
@@ -299,6 +299,7 @@ class DictManager:   # Клас-помічник по роботі із
         return  list_val   # повертає словник [value1, value2, ...]
     
     @staticmethod
+    #  ось так вигляд виклик: DictManager.get_list_by_key(self.dict_tabl, None, target = 'ukr') - якщо немає другого словника
     def get_list_by_key(dict_main, dict_dep, target): # служб унів метод на вхід прймає 1/2 словники типу  {'Артикул': {'type': 'varchar', 'size': 25}, 'Назва товару': {'type': 'nvarchar', 'size': 50},
         # якщо два то обєднує іх в один словн, потім витягує із обєдн/одинар словника значення які я вказую в парам target і всі ці значення складає в новий список 
        if dict_dep is None:   # Якщо другий словник не передали, робимо його порожнім словником
@@ -313,6 +314,16 @@ class DictManager:   # Клас-помічник по роботі із
            return [val[2] for val in dict_main.values()] + [val[2] for val in dict_dep.values()]
        else: 
            return []  
+       
+    @staticmethod
+    # Для укр_назви_стовпця видати - анл_назву стовпця, де param - це укр_назва_стовпця
+    def get_eng_name_stov(diction, param):  # поверт name із словн типу {'назва_стовп':{'name':'eng_name', 'type': ' ', 'size': ' '}, де param == key 
+        search_param = str(param).strip().lower()    # Приводим входящий параметр к нижнему регистру и убираем лишние пробелы
+        for key, eng_name in diction.items():  # Проходим по словарю метаданных
+            if search_param == str(key).strip().lower():  # якщо укр_назва_стовпця == назві key із словника
+                return eng_name['name']  # повертає анг_назву_стовпця
+        return  None   # Если ничего не нашли   
+
 
 class CheckBoxManager(QCheckBox): # Клас реалізує прапорець
     def __init__(self, text="", checked_default = True, parent = None):   # text ="" відобраз праворуч від квадратика прапорця

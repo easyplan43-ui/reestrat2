@@ -16,16 +16,17 @@ failed_sproba_enter = 0
 width = 300   # задаємо ширину і висоту вікна логування 
 height = 200  # задаємо ширину і висоту вікна логування
 
-NAME_BUTTONS = {       # словник для зберігання даних у форматі «ключ: значення»
-    "Sales":     "Продажі",
-    "Purchases": "Закупівлі",
-    "Stock":     "Склад",
-    "Person":  "Персонал",
-    "Salary":    "Зарплата",
-    "Reports":   "Звіти",
-    "Settings":  "Налаштування",
-    "Admin":     "Адміністратору",
-    "Exit":      "Вихід"
+NAME_BUTTONS = {       # словник для зберігання: key, icon, ukr_name, список roles
+    "Sales":     ("📈", "Продажі", ['bychalt_role', 'admin_role', 'prodaz_role']),
+    "Purchases": ("🛒", "Закупівлі", ['admin_role', 'zakypiv_role']),
+    "Stock":     ("📦", "Склад", ['admin_role', 'sklad_role']),
+    "Person":    ("👥", "Персонал", ['bychalt_role', 'admin_role', 'kadru_role']),
+    "Salary":    ("💰", "Зарплата", ['bychalt_role', 'admin_role', 'kadru_role']),
+    "Reports":   ("📊", "Звіти", ['bychalt_role', 'admin_role', 'sklad_role', 'prodaz_role']),
+    "Struct":    ("📁", "Структура", ['admin_role']),
+    "Settings":  ("⚙️", "Налаштування", ['admin_role']),
+    "Admin":     ("🛡️", "Адміністратору", ['admin_role']),
+    "Exit":      ("🚪", "Вихід", ['bychalt_role', 'admin_role', 'sklad_role', 'kadru_role', 'zakypiv_role', 'prodaz_role'])
 }
 Schema = 'hardware'
 Table_category = f"{Schema}.Categories"   # Повна назва таблиці зі схемою

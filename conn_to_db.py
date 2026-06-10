@@ -203,8 +203,8 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
     def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text, eng_criteria):
         query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
                     {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
-                     WHERE m.{eng_criteria[0][0]} LIKE ?;"""
-        param = f"%{query_text}%"                  # захист від SQL Injection
+                     WHERE m.{eng_criteria} LIKE ?;"""
+        param = f"%{query_text}%"  # захист від SQL Injection
         return self.execute_query(query, (param,))
     
     def insert_in_tables(self, depend_tabl, list_stovp_bez_id_maintabl, kilk_stovp_main_tabl, list_all_stovp_depend_tabl, placeholders_depend, params):

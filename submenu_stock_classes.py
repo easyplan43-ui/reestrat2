@@ -19,8 +19,8 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         self.table_name_depend = None # Це імя залежної таблиці від табл Products, наприклад це може бути табл: Memory, Storage, Proccessor,..
         self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
         self.sub_cat_id = None    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
-        self.dict_stovp_main = []    # Словник типу {'Artukyl': {'type': 'varchar', 'size': 25}, для головн табл
-        self.dict_stovp_depend = []  # Словник типу {'stor_type': {'type': 'varchar', 'size': 15} для залежн табл 
+        self.dict_stovp_main = []    # Словник типу {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, для головн табл
+        self.dict_stovp_depend = []  # Словник типу {'Тип диска': {'name': 'stor_type', 'type': 'varchar', 'size': 15}, для залежн табл 
         self.list_widgets = []
         self.widg_to_hide = []     # Цей список я використ в методі prepare_form_sub_vupad_spus, де дочірні класи сюда перед різні віджети to hide
         self.pered_func_stovp = None  # для передачі назви методу, який зверт до бд і витягає назви потрібних стовп для кожного доч класу різні
@@ -87,7 +87,7 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
             
 class ZalushTovary(BasicSklad):    #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Залишок товару" ---------------------------- 
     def __init__(self):
-        super().__init__()   # Виконати спочатку все що є в конструкторі базового касу 
+        super().__init__()   # Виконати спочатку все що є в конструкторі базового класу, тобто запускаєм констр базового класу спочатку
         self._init_ui() # виклик початк методу з базового класу  дає дизайн і вигляд кнопок, випадаючих списків
                        
     def _init_ui(self):
@@ -149,31 +149,54 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
             DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}", QMessageBox.Icon.Warning) 
             return []         
 
-    def select_prod(self):  # Підгот служб дані для SELECT і виклик метод, який виводить з обох таблиць: main і depend інфу в таблицу на екрані
-        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
-        cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
-        if not cortege_fk_prim_key or not cortege_fk_prim_key_where:    # Якщо не дістали Foreign Key з бд то:
+    #def select_prod(self):  # Підгот служб дані для SELECT і виклик метод, який виводить з обох таблиць: main і depend інфу в таблицу на екрані
+        #cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
+        #cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
+        #if not cortege_fk_prim_key or not cortege_fk_prim_key_where:    # Якщо не дістали Foreign Key з бд то:
+           # logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {self.table_name_depend}")
+           #return []
+        #col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
+        #col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
+        #all_columns = ", ".join(col_main + col_depend) 
+        # Нижче - Виклик метода класу ZaputuProductDB, який виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку 
+        #result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
+        #return result
+    
+    def select_prod(self, query_text = None): # Підгот служб дані для SELECT, і зверт або до одного методу щоб зробити SELECT всього в таблицю відобр
+        # або до іншого методу, щоб здійснити SELECT LIKE тобто пошук при нажаті на кнопку SEARCH
+        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')] 
+        if not cortege_fk_prim_key:    # Якщо не дістали Foreign Key з бд то:
             logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {self.table_name_depend}")
             return []
         col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
         col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
         all_columns = ", ".join(col_main + col_depend) 
-        # Нижче - Виклик метода класу ZaputuProductDB, який виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку 
-        result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
-        return result
+        if query_text is None:  # Якщо це не є пошук по кнопці Search, а вивід SELECT в таблицю виводу на екрані
+            cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
+            if not cortege_fk_prim_key_where: # Якщо не дістали Foreign Key з бд то:
+               logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {Table_main_product}")
+               return []
+            result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
+            return result
+        else:   # Це пошук по кнопці Search, яку нажав користувая коли ввів query_text в полі пошуку
+            ukr_radiobtn_name = self.get_selected_radiobtn_text()    # Викл служ метода який для активної вибраної радіокнопки дає її текст/назву україн мовою
+            eng_stovp_name = DictManager.get_eng_name_stov(self.dict_stovp_main, ukr_radiobtn_name)
+            result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text, eng_stovp_name)
+            return result
     
     def check_searched_text(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
         vvedenuy_text = self.search_input.text().strip()   # Отримуємо текст з поля вводу і прибираємо зайві пробіли по боках
         if not vvedenuy_text:  # Якщо поле порожнє — можна вивести попередження
             DialogWindow.form_dialog_wind("Помилка", "Поле пошуку не може бути порожнім!", QMessageBox.Icon.Warning) # зверт до класу помічника по створ діалог вікна
             return
-       
-        rows = self.search_in_db(vvedenuy_text)    # Якщо текст є — викликаємо метод пошуку в БД   
+        rows = self.select_prod(query_text = vvedenuy_text)    # Якщо корист ввів текст — викликаємо метод пошуку в БД   
         if not rows:  # якщо корист щось ввів але це не знайдено в бд
             DialogWindow.form_dialog_wind("Увага", "Нічого не знайдено в базі!", QMessageBox.Icon.Information) # зверт до класу помічника по створ діалог вікна
             self.search_input.clear()   # Очищаємо поле Search
+            self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
         else:    #  якщо корист щось ввів і це знайдено  в бд   
-            TablManager.fill_table(self.table, rows, bagatovum = False) # зверт до класу помічника по створеню і заповненю таблиці відображ даних на екрані
+            self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
+            self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці знайденими даними
             self.search_input.clear()   # Очищаємо поле Search
             WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
 
@@ -186,14 +209,29 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
             self.search_layout.addWidget(self.radio_btn[i])
             if i == 0:
                 self.radio_btn[i].setChecked(True)  #  Першу радиокнопку робимо активною
-        #self.list_widgets.extend(self.radio_btn)  # до списку віджетів які ховаємо/показуємо додаємо список з радіокнопок    
-
+       
     def update_pidkazky(self, index, stan_btn):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
         if stan_btn: 
            current_name = self.radio_btn[index].text() # знаходимо в списку кнопку за номером index і прочитай текст - назву стовпця
-           self.search_input.setPlaceholderText(f"за {current_name}")    
+           self.search_input.setPlaceholderText(f"за {current_name}")  
+
+    def get_selected_radiobtn_text(self):  # Метод для активної вибраної радіокнопки дає текст (її назву) на українс мові
+        for btn in self.radio_btn:
+            if btn.isChecked():
+                return btn.text()
+        return None           
+
+    #def search_in_db(self, query_text):  # Підготовл служб дані для пошуку і виклик метод який здійснює сам пошук в бд за введеними даними від корист в полі Search
+        #cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
+        #col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
+        #col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
+        #all_columns = ", ".join(col_main + col_depend) 
+        #ukr_radiobtn_name = self.get_selected_radiobtn_text()    # Викл служ метода який для активної вибраної радіокнопки дає її текст/назву україн мовою
+        #eng_stovp_name = DictManager.get_eng_name_stov(self.dict_stovp_main, ukr_radiobtn_name)
+        # Нижче - Виклик метода класу ZaputuProductDB, виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search 
+        #result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text, eng_stovp_name)
+        #return result         
         
-    
 class InsertTovar(BasicSklad):     #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Внесення товару" -------------------------------------------
     def __init__(self):
         super().__init__()    # Виконати спочатку все що є в конструкторі базового касу
