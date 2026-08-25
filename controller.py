@@ -30,10 +30,10 @@ class Controller():   # Класс-контроллер для управлен�
     def show_submenu(self, category):  #category зараз дорівнює "Stock", "Sales" тощо.
        # Отримуємо українську назву з NAME_BUTTONS (для "Stock" це буде "Склад")
        # Другий елемент кортежу NAME_BUTTONS[category][1] — це саме текст "Склад"
-       ukr_category_name = NAME_BUTTONS.get(category) # де  ukr_category_name типу: Склад, Звіти
-       print(ukr_category_name)
+       ukr_category_name = NAME_BUTTONS[category][1] # де  ukr_category_name типу: Склад, Звіти
        # Безпечно шукаємо дані в JSON-словнику за українською назвою
        submenu_data = self.dict_name_btns_submenu.get(ukr_category_name) # де submenu_data це всі дані для кожного словника
+       
        # Відображаємо підменю, якщо воно знайдене
        if submenu_data is not None:
           self.main_wind.submenu.create_dynamic_submenu(submenu_data)

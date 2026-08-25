@@ -12,7 +12,7 @@ from registr_error import logger_main_conn, logger_configfile_conn
 import os
 import sys
 import yaml
-from style import SidebarButtonStyle, SubmenuStyle
+from style import SidebarButtonStyle, SubmenuStyle, UserInfoBarStyle
 from constants import *
 from conn_to_db import *
 from string_to_class import *
@@ -267,15 +267,8 @@ class UserConnectInfoBar(QLabel):    # Виводить строку вгорі 
         server = os.environ.get('LOGONSERVER', 'local').lstrip('\\')  # Windows вертае LOGONSERVER с двумя слешами в начале lstrip превращает это в чистое имя 
         self.setText(f"Користувач: <b>{self.full_username}</b> авторизований на: \"{server}\" належить до: {self.user_group}")   # Налаштовуємо текст та зовнішній вигляд
         self.setFixedHeight(25) 
-        self.setStyleSheet("""
-            background-color: #e1e1e1; 
-            padding-left: 10px; 
-            margin: 0px;               
-            border-bottom: 1px solid #999;
-            font-size: 11px;
-            color: #333;
-        """)
         self.setAlignment(Qt.AlignmentFlag.AlignVCenter)   # Вирівнюємо вміст віджету строго по центру як по гориз чтак і по вертикалі
+        self.setStyleSheet(UserInfoBarStyle.USER_INFO_BAR)   # Застосовуємо стиль який виражений окремим класом
 
 class IconsManager: # Виводить рядок зображень-іконок типу: друк, прикріпити, кошик, видалити під рядком інфа про користувача
     def __init__(self, toolbar, folder_path):
@@ -293,7 +286,7 @@ class IconsManager: # Виводить рядок зображень-іконо�
                 action = QAction(QIcon(icon_path), file_name, self.toolbar)  # инициализуемо кнопку с иконкой (QIcon(icon_path)), текстовой подписью (file_name) и привязывает её к панели инструментов (self.toolbar)
                 self.toolbar.addAction(action)   # Додаємо дію на панель інструментів 
                
-class SubmenuBase(QFrame):    # Створює підменю від головного лівостронього toolbar c копками
+class SubmenuBase(QFrame):    # Створює підменю від головного лівостронього toolbar c кнопками
     def __init__(self, main_window):
         super().__init__()
         self.main_wind = main_window

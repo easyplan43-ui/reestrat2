@@ -324,7 +324,6 @@ class DictManager:   # Клас-помічник по роботі із
                 return eng_name['name']  # повертає анг_назву_стовпця
         return  None   # Если ничего не нашли   
 
-
 class CheckBoxManager(QCheckBox): # Клас реалізує прапорець
     def __init__(self, text="", checked_default = True, parent = None):   # text ="" відобраз праворуч від квадратика прапорця
         super().__init__(text, parent) # беремо оригін конструктор QCheckBox і запускаємо його, передавши йому text та parent

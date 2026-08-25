@@ -1,5 +1,5 @@
 import os
-sql_server = 'sqlserv03'  # this is virtual WSFC name, consists from sqlserv03/04
+sql_server = 'listreestr'  # this is name of listener of availability group, consists from two replics sqlserv03, sqlserv04
 database = 'vpn_serv01' 
 DOMAIN_CONTROLLERS = 'cd01.videoservaillance.com'
 domain = "VIDEOSERV"

@@ -149,19 +149,6 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
             DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}", QMessageBox.Icon.Warning) 
             return []         
 
-    #def select_prod(self):  # Підгот служб дані для SELECT і виклик метод, який виводить з обох таблиць: main і depend інфу в таблицу на екрані
-        #cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
-        #cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
-        #if not cortege_fk_prim_key or not cortege_fk_prim_key_where:    # Якщо не дістали Foreign Key з бд то:
-           # logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {self.table_name_depend}")
-           #return []
-        #col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
-        #col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
-        #all_columns = ", ".join(col_main + col_depend) 
-        # Нижче - Виклик метода класу ZaputuProductDB, який виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку 
-        #result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
-        #return result
-    
     def select_prod(self, query_text = None): # Підгот служб дані для SELECT, і зверт або до одного методу щоб зробити SELECT всього в таблицю відобр
         # або до іншого методу, щоб здійснити SELECT LIKE тобто пошук при нажаті на кнопку SEARCH
         cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')] 
@@ -221,17 +208,6 @@ class ZalushTovary(BasicSklad):    #----------------  дочір клас Реа
                 return btn.text()
         return None           
 
-    #def search_in_db(self, query_text):  # Підготовл служб дані для пошуку і виклик метод який здійснює сам пошук в бд за введеними даними від корист в полі Search
-        #cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')]
-        #col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
-        #col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
-        #all_columns = ", ".join(col_main + col_depend) 
-        #ukr_radiobtn_name = self.get_selected_radiobtn_text()    # Викл служ метода який для активної вибраної радіокнопки дає її текст/назву україн мовою
-        #eng_stovp_name = DictManager.get_eng_name_stov(self.dict_stovp_main, ukr_radiobtn_name)
-        # Нижче - Виклик метода класу ZaputuProductDB, виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search 
-        #result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text, eng_stovp_name)
-        #return result         
-        
 class InsertTovar(BasicSklad):     #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Внесення товару" -------------------------------------------
     def __init__(self):
         super().__init__()    # Виконати спочатку все що є в конструкторі базового касу

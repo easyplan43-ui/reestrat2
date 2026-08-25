@@ -45,3 +45,16 @@ class SubmenuStyle:
         }
         QPushButton:hover { background-color: #dcdde1; }
     """
+
+class UserInfoBarStyle: # Стиль для строки вгорі екрану яка виводить інфу про користувача
+    USER_INFO_BAR = """
+        QLABEL { 
+            background-color: #e1e1e1; 
+            padding-left: 10px; 
+            margin: 0px;               
+            border-bottom: 1px solid #999;
+            font-size: 11px;
+            color: #333;
+        }    
+        """
+

@@ -1,0 +1,209 @@
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QComboBox, QLineEdit, QFrame, QHeaderView, QAbstractItemView,
+                             QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QFormLayout, QRadioButton,
+                             QPushButton, QMessageBox, QApplication)
+from PyQt6.QtGui import QFont, QColor
+#from PyQt6.QtCore import pyqtSignal  # для спілкування обєктів між собою для сигналів і випад списків
+from check_functions import search_val_in_dict
+from constants import *
+from conn_to_db import ZaputuCategoriesDB, ZaputuProductDB, ZaputuTypepoint  # клас для підключення до бд
+from dodat_classes import DialogWindow, TablManager, WorkwithWidgets, VupadSpusokManager, FormaVvody, DictManager  #  звертаємося до статичних методів класів помічників, щоб не створ екземпляр класу
+from registr_error import logger_db_conn   # регистрація помилок в файл
+from style import STOCK_STYLE
+# Тільки класи для реалізації підменю "Склад". Незабудь новий створюваний клас відмітити в файлі: string_to_class
+class BasicUnion(QMainWindow):       #      Батьківський клас по Складу
+    def __init__(self):
+        super().__init__()
+        self.ekzemp_typepoint = ZaputuTypepoint(Table_typepoint)   # Створюємо екземпляр класу для роботи з типами точок, передаючи назву таблиці
+        self.ekzemp_product = ZaputuProductDB(Table_main_product)    # Створюємо екземпляр класу для роботи з товарами, передаючи назву таблиці   
+       
+        self.table_name_depend = None # Це імя залежної таблиці від табл Products, наприклад це може бути табл: Memory, Storage, Proccessor,..
+        self.cat_tag = None   #  Це тег взятий з табл: Categories, щоби знати яку вибирати табл: Memory_det, Processor_det, ....
+        self.sub_cat_id = None    # цю змінну я буду викор в запиті SELECT WHERE sub_cat_id = Category_catid
+        self.dict_stovp_main = []    # Словник типу {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, для головн табл
+        self.dict_stovp_depend = []  # Словник типу {'Тип диска': {'name': 'stor_type', 'type': 'varchar', 'size': 15}, для залежн табл 
+        self.list_widgets = []
+        self.widg_to_hide = []     # Цей список я використ в методі prepare_form_sub_vupad_spus, де дочірні класи сюда перед різні віджети to hide
+        self.pered_func_stovp = None  # для передачі назви методу, який зверт до бд і витягає назви потрібних стовп для кожного доч класу різні
+
+        QApplication.instance().setStyleSheet(STOCK_STYLE)   # Встановлюємо стиль із файлу стилів
+        self.central_widget = QWidget()  # Головний віджет
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QVBoxLayout(self.central_widget) # Вертикальний розподіл: вгорі категорії, підкатегорії пошук, внизу - таблиця
+
+        self.ekzemp_vupad_spusok = VupadSpusokManager(self.ekzemp_typepoint.get_type_points, "Виберіть тип точки") # Створ екземп класу по роботі з випад списками
+       #self.ekzemp_sub_vupad_spusok = VupadSpusokManager(self.ekzemp_typepoint.get_type_points, "Виберіть підкатегорію товара")
+        self.ekzemp_table            = TablManager(sortyvatu = True)   # Створ екземп класу по роботі із таблицею відображення інфи на екрані
+      
+        # ------------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
+        self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире якийсь елем у випад_списку, показуємо sub список під головн випад списком
+        self.ekzemp_sub_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю    
+               
+    def _get_spusok_stovp_transl(self, tablename):  # //tested// для конкр таблиці дістає список стовпців, які треба перек на україн і вивести в таблицю на екран
+        if tablename is None:
+            list_kort= self.pered_func_stovp() # дочір класи перед різні назви методів, щоб витягнути різні стовпці із бд типу: [('Артикул', 'artukyl', 'varchar', 25), ('Назва товару', 'nazva_tov', 'nvarchar', 50),
+        else:
+            list_kort = self.pered_func_stovp(tablename) # дочір класи перед різні назви методів, щоб витягнути різні стовпці із бд [("Тип пам'яті", 'mem_type', 'varchar', 50), ("Обє'м Гб", 'capacity', 'int', 10),
+        return DictManager.form_dictionary(list_kort)  # зверт до статичного методу, щоб отрим словник зі списку кортежів
+        # повертаємо словник типу : {'Артикул': ('artukyl', 'varchar', 25), 'Назва товару': ('nazva_tov', 'nvarchar', 50), 'Опис': ('description', 'nvarchar', 200),
+
+    def _get_ukr_dict_type(self, table_with_tag):  #  //not tested yet// Служб метод зясовує яка залежн таблиця і дістає назви, тип, size стовпців з 2-х таблиць 
+        self.sub_cat_id = self.ekzemp_sub_vupad_spusok.get_curr_data()[0]    # коли ти вибир щось із підвипад списку появляє self.sub_cat_id
+        list_korteg_tablname = self.ekzemp_category.get_tag_nametable(table_with_tag) # korteg_table_name = [('cpu', 'hardware.Proccess_det'), ('mainboard', 'hardware.Mainboard_det'), ('ram', 'hardware.Memory_det'), ('storage', 'hardware.Storage_det')] 
+        if not list_korteg_tablname:
+            return [], [] 
+        dict_tabl = DictManager.form_dictionary(list_korteg_tablname) # виклик статичн метод який перетвор список_кортежів в dictionary {'cpu': 'hardware.Proccess_det', 'mainboard': 'hardware.Mainboard_det', 'ram': 'hardware.Memory_det', 'storage': 'hardware.Storage_det'}
+        self.table_name_depend = search_val_in_dict(dict_tabl, self.cat_tag) # за вказаним тегом шукаємо назву таблиці з допом зовн функції з файлу check_functions
+        if not self.table_name_depend:
+            return [], []
+        dict_stovp_main = self._get_spusok_stovp_transl(None)        #  {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, 'Назва товару': {'name': 'nazva_tov', 'type': 'nvarchar', 'size': 50},
+        dict_stovp_depend = self._get_spusok_stovp_transl(self.table_name_depend)     # {"Роз'єм/Сокет": {'name': 'socket', 'type': 'varchar', 'size': 30}, 'Кількість ядер': {'name': 'cores', 'type': 'int', 'size': 10}, 
+        return dict_stovp_main, dict_stovp_depend 
+    
+    def get_userdata_from_form(self, data_user): #  метод викликается автомат, коли у формі вводу натискають 'Внести' і дані перевірені і він отрим дані з форми вводу
+       # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
+        list_user_val = DictManager.get_list_from_val_dict(data_user) # виклик статич метод що вертає список даних які ввів користувач типу ['val1', 'val2', val3]
+        self.prepare_to_insert(list_user_val)   # це передача  list_user_val через метод-заглушку peredacha_list на дочірній клас 
+
+    def prepare_to_insert(self, list_users_data):  # тут це метод-заглушка, для отримання і передачі списку list_users_data на дочірн клас
+        pass
+
+    def prepare_form_sub_vupad_spus(self, data): # Підготовка до формування sub_vupad_spusok
+        if data:    # Якщо вибрано реальний елемент (не дефолт)
+            WorkwithWidgets.hide_widgets(self.widg_to_hide)  # з дочірн класу кажемо які віджети сховати
+            cat_id, _, self.cat_tag, *_ = data  # 1 і 3 елем з data присвою cat_id, cat_tag, а все інше (скільки б там не було) піде в порожнечу _
+            self.ekzemp_sub_vupad_spusok.add_items(cat_id)  # за cat_id виводимо id і назву sub_категорії  
+            self.ekzemp_sub_vupad_spusok.show()
+        else:  # Якщо вибрано дефолтний елемент 
+            WorkwithWidgets.hide_widgets([self.ekzemp_sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і  
+
+    def prepare_form_tabl_forma_vvody(self): # підготовка формування таблиці виводу інфи або форми вводу, в залежності від дочірн класу
+        # Базова логіка підготовки: перевіряє індекс, повертає True, якщо індекс був 0 і форму сховано.
+        index = self.ekzemp_sub_vupad_spusok.get_curr_index() # вивод текуч індекс/номер вибраного елементу в вип_списку - 0,1,2,3,....
+        if  index == 0:   # Якщо обрано "Оберіть підкатегорію..." (індекс 0), ховаємо форму ввода
+            WorkwithWidgets.hide_widgets(self.list_widgets) # Виклик Зовн статич метод з класу WorkwithWidgets, щоб сховати віджети
+            return True  # заверш роботу бо корист вибрав категорію позамовченю
+        else:  # Якщо користув обрав якусь реальну не дефолтну категорію
+            return False
+            
+class SkladandMarket(BasicUnion):    #----------------  дочір клас Реалізує вкладку  - "Склад" -  "Залишок товару" ---------------------------- 
+    def __init__(self):
+        super().__init__()   # Виконати спочатку все що є в конструкторі базового класу, тобто запускаєм констр базового класу спочатку
+        self._init_ui() # виклик початк методу з базового класу  дає дизайн і вигляд кнопок, випадаючих списків
+                       
+    def _init_ui(self):
+        self.search_layout    = QHBoxLayout()            #     Створюємо Горизонт панель де розміщено категорія і пошук 
+        self.update_btn       = QPushButton("Оновити")   #    Створюємо кнопку Оновити дані з бд  
+        self.search_input     = QLineEdit()              #  Це поле пошуку чогось / поле вводу 
+        self.search_btn       = QPushButton("Пошук")     # Кнопка пошуку 
+        self.radio_btn = []    # Це Список радіокнопок, а не одна кнопка, які динамічно створюються для визнач критерію пошуку
+        self.pered_func_stovp = self.ekzemp_product.get_all_stovp_bez_identity  # передаю назву метода який витяг назви стовп із бд
+        
+        self.search_layout.addWidget(self.ekzemp_vupad_spusok)      # Екземпляр Випадаючого списоку додаємо до панелі пошуку інформації
+        self.search_layout.addWidget(self.ekzemp_sub_vupad_spusok)   #  Sub Випадаюч список додаємо до панелі пошуку інформації
+        self.search_layout.addWidget(self.update_btn)
+        self.form_radiobtns()       # Метод створює, формує радіокнопки і робить одну по замовченю обраною
+        self.widg_to_hide = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати self.ekzemp_table
+        self.search_layout.addWidget(self.search_input)
+        self.search_layout.addWidget(self.search_btn)
+        self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
+        self.search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
+
+        self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу
+        
+        WorkwithWidgets.hide_widgets([self.ekzemp_sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
+        self.main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
+        
+        self.main_layout.addWidget(self.ekzemp_table, stretch=1)   #  stretch=1 означає "забрати все вільне місце"
+        self.main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
+
+        # ---------------------------------------------------------- Сигнали ------------------------------------------------------------------
+        self.update_btn.clicked.connect(self.prepare_form_tabl_forma_vvody)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю 
+        self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
+        for i in range(len(self.radio_btn)):
+            self.radio_btn[i].toggled.connect(lambda stan_btn, index=i: self.update_pidkazky(index, stan_btn))  # При виборі тої радіокнопки міняємо підказку в середині поля Search
+
+        self.update_pidkazky(0, True)  # Щоб вивело підказку в полі пошуку на самому початку виконання проги     
+
+    #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо        
+    def  prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув табл, підгот укр назв стовпців,
+        if super().prepare_form_tabl_forma_vvody():   #  # Викликаємо спільний код з базового класу і якщо True то,
+            return # виходимо бо користув вибрав меню по замовченю у випад списку
+        self.dict_stovp_main, self.dict_stovp_depend = self._get_ukr_dict_type(Table_tag)
+        if self.dict_stovp_main and self.dict_stovp_depend: # Якщо є словники типу: {'Артикул': {'name': 'artukyl', 'type': 'varchar', 'size': 25}, 'Назва товару': {'name': 'nazva_tov', 'type': 'nvarchar', 'size': 50}
+            list_ukr_namestovp = DictManager.get_list_by_key(self.dict_stovp_main, self.dict_stovp_depend, target = 'ukr')  # беремо назви стовпців в обох словник і склад список укр назв стовпців
+            if list_ukr_namestovp: # Якщо існує список укр стовп із 2-х табл типу: ['Артикул', 'Назва товару', 'Опис', 'Кількість', 'Ціна', 'Створено', "Роз'єм/Сокет", 'Чипсет', 'Форм-фактор', 'Кількість слотів']
+                rows = self.select_prod()   # беремо з бази сирий рядок типу: [('SAS-SG-360', 'Диск SAS Seagate 360 ', '2 SFF', 5, Decimal('87.00'), datetime.datetime(2026, 3, 31, 17, 16, 17, 570000), 'SAS-2', 360, 6000), і тд до кінця табл
+                if not rows:
+                   self.ekzemp_table.clear_table()   # Все строки, которые были в таблице, мгновенно удаляются
+                   DialogWindow.form_dialog_wind("Помилка", f"Не вдалося прочитати дані із таблиці: {self.table_name_depend}", QMessageBox.Icon.Warning)
+                   return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
+                self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
+                self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці даними
+                WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+            else: 
+                logger_db_conn.error(f"Не сформовано список українських назв стовпців")
+                DialogWindow.form_dialog_wind("Помилка", f"Не сформовано список українських назв стовпців", QMessageBox.Icon.Warning)
+                return []   
+        else:    
+            logger_db_conn.error(f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}") 
+            DialogWindow.form_dialog_wind("Помилка", f"Не сформований словник для таблиці: {Table_main_product} або {self.table_name_depend}", QMessageBox.Icon.Warning) 
+            return []         
+
+    def select_prod(self, query_text = None): # Підгот служб дані для SELECT, і зверт або до одного методу щоб зробити SELECT всього в таблицю відобр
+        # або до іншого методу, щоб здійснити SELECT LIKE тобто пошук при нажаті на кнопку SEARCH
+        cortege_fk_prim_key = self.ekzemp_category.get_foreignkey(self.table_name_depend)  # отримуємо 1 - назву стовп з власт foreign key, 2- назву стовпця на який цей foreign key ссилається типу [('storid', 'Prodid')] 
+        if not cortege_fk_prim_key:    # Якщо не дістали Foreign Key з бд то:
+            logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {self.table_name_depend}")
+            return []
+        col_main = [f"m.{col_name['name']}" for col_name in self.dict_stovp_main.values()]       # Поєднуємо m зі стовпцями головної табл
+        col_depend = [f"d.{col_name['name']}" for col_name in self.dict_stovp_depend.values()]   # Поєднуємо d зі стовпцями залежної табл
+        all_columns = ", ".join(col_main + col_depend) 
+        if query_text is None:  # Якщо це не є пошук по кнопці Search, а вивід SELECT в таблицю виводу на екрані
+            cortege_fk_prim_key_where = self.ekzemp_category.get_foreignkey(Table_main_product) # з головн табл отримуємо назву стовпця з власт foreign key
+            if not cortege_fk_prim_key_where: # Якщо не дістали Foreign Key з бд то:
+               logger_db_conn.error(f"Не вдалося отримати ключі для JOIN або WHERE в таблиці: {Table_main_product}")
+               return []
+            result = self.ekzemp_product.get_product_details(all_columns, self.table_name_depend, cortege_fk_prim_key, cortege_fk_prim_key_where, self.sub_cat_id)
+            return result
+        else:   # Це пошук по кнопці Search, яку нажав користувая коли ввів query_text в полі пошуку
+            ukr_radiobtn_name = self.get_selected_radiobtn_text()    # Викл служ метода який для активної вибраної радіокнопки дає її текст/назву україн мовою
+            eng_stovp_name = DictManager.get_eng_name_stov(self.dict_stovp_main, ukr_radiobtn_name)
+            result = self.ekzemp_product.get_product_details_by_search(all_columns, self.table_name_depend, cortege_fk_prim_key, query_text, eng_stovp_name)
+            return result
+    
+    def check_searched_text(self):  #  Робить провірку введеного тексту користувач і якщо не пустий текст викликає інший метод для пошуку тексту в бд
+        vvedenuy_text = self.search_input.text().strip()   # Отримуємо текст з поля вводу і прибираємо зайві пробіли по боках
+        if not vvedenuy_text:  # Якщо поле порожнє — можна вивести попередження
+            DialogWindow.form_dialog_wind("Помилка", "Поле пошуку не може бути порожнім!", QMessageBox.Icon.Warning) # зверт до класу помічника по створ діалог вікна
+            return
+        rows = self.select_prod(query_text = vvedenuy_text)    # Якщо корист ввів текст — викликаємо метод пошуку в БД   
+        if not rows:  # якщо корист щось ввів але це не знайдено в бд
+            DialogWindow.form_dialog_wind("Увага", "Нічого не знайдено в базі!", QMessageBox.Icon.Information) # зверт до класу помічника по створ діалог вікна
+            self.search_input.clear()   # Очищаємо поле Search
+            self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
+        else:    #  якщо корист щось ввів і це знайдено  в бд   
+            self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
+            self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці знайденими даними
+            self.search_input.clear()   # Очищаємо поле Search
+            WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
+
+    def form_radiobtns(self):  # Формує радіо-кнопки згідно запиту до таблиці в якій витягуємо всі стовпці типу varchar/nvarchar   
+        listcort_ukr_stovp = self.ekzemp_product.get_all_stovp_varchar() # Цей метод видає назви всіх стовпців з типом даних varchar або nvarchar, [('Артикул',), ('Назва товару',), ('Опис',)]    
+        for i, name in enumerate(listcort_ukr_stovp):
+            text_name = name[0]  # Витягуємо саме рядок з кортежу
+            btn = QRadioButton(text_name)   # Створюємо одну кнопку
+            self.radio_btn.append(btn)    #  До списку радіокнопок додаємо текучу кнопку
+            self.search_layout.addWidget(self.radio_btn[i])
+            if i == 0:
+                self.radio_btn[i].setChecked(True)  #  Першу радиокнопку робимо активною
+       
+    def update_pidkazky(self, index, stan_btn):  # Змінює текст-підказку в полі Search при виборі або артикула або назви товару
+        if stan_btn: 
+           current_name = self.radio_btn[index].text() # знаходимо в списку кнопку за номером index і прочитай текст - назву стовпця
+           self.search_input.setPlaceholderText(f"за {current_name}")  
+
+    def get_selected_radiobtn_text(self):  # Метод для активної вибраної радіокнопки дає текст (її назву) на українс мові
+        for btn in self.radio_btn:
+            if btn.isChecked():
+                return btn.text()
+        return None           

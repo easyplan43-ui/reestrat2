@@ -91,11 +91,6 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         query = f"SELECT eng_namestovp, ukr_namestovp FROM {target_table} WHERE table_name =?";
         return self.execute_query(query, (sel_tabl,))   # повертає список кортежів типу[('назва_табл', 'eng_stovp', 'ukr_stovp'),.......і так до кінця таблиці 
     
-    #def get_english_stovp(self, table = None, ukr_namestovp = None):  # Видає англ назву стовпця за вказаним українскою назвою. Зворотня до методу get_display_ukrtext
-    #    target_table = self._get_target_table(table) 
-    #    query = f"SELECT eng_namestovp FROM {target_table} WHERE ukr_namestovp = ?";
-    #    return self.execute_query(query, (ukr_namestovp,))    # Виконуємо запит через курсор і передаємо eng_name_stovpec  як кортеж 
-
     def get_all_stovp_bez_identity(self, table = None):  # Отримуємо назви всіх стовпців в таблиці крім тих, які з властив Identity id і foreign keys
         target_table = self._get_target_table(table)
         query = f"""SELECT T.ukr_namestovp, T.eng_namestovp, C.DATA_TYPE, COALESCE(C.CHARACTER_MAXIMUM_LENGTH, 

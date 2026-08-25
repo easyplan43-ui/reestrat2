@@ -2,11 +2,13 @@
 #   без цього файлу в класі Controller() в методі def add_tab(self) вираз  new_tab = real_class_to_submenubtn() давав помилку
 from submenu_stock_classes import ZalushTovary, InsertTovar, Peremichena
 from submenu_admin_classes import InsNewSklad
+from submenu_struct_classes import SkladandMarket
 from PyQt6.QtWidgets import QLabel
 Str_to_classname = {     
-   "ZalushTovary": ZalushTovary,
-   "Peremichena": Peremichena,
-   "InsertTovar": InsertTovar,
-   "InsNewSklad": InsNewSklad,
+   "ZalushTovary"  : ZalushTovary,
+   "Peremichena"   : Peremichena,
+   "InsertTovar"   : InsertTovar,
+   "InsNewSklad"   : InsNewSklad,
+   "SkladandMarket": SkladandMarket,
     "QLabel": QLabel  # Якщо використовуєте QLabel як заглушку
 }
