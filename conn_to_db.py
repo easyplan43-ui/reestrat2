@@ -221,9 +221,21 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
         return self.execute_query_insert(query, params)
         
 class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви складів і їх адреси
-    def insert_in_tables(self, list_stovp_bez_id, kilk_stovp, params):
+    def __init__(self, name_table):
+        # Обов'язково викликаємо конструктор базового класу WorkDB.
+        # Це створить self._name_table та self.error_zaputy всередині цього об'єкта.
+        super().__init__(name_table)
+
+    def insert_in_tables(self, list_stovp_bez_id, kilk_stovp, params):     # метод додавання нової позиції складу/магазину
         query = f"""INSERT INTO {self._name_table} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * kilk_stovp)});"""
         return self.execute_query_insert(query, params)
+
+    #  виводить дані про склади/магазини в залежності від типу точки яку обрав користувач в випад списку
+    def get_sklad_details_by_categ(self, all_columns, category):
+            query = f"""SELECT {all_columns} FROM {self._name_table} WHERE Type LIKE ?;"""
+            print(category)
+            param = f"%{category}%"  # захист від SQL Injection
+            return self.execute_query(query, (param,))
 
    
 

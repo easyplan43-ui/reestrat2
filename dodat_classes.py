@@ -211,9 +211,12 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         finally:
             self.vupad_spusok.blockSignals(False)  # знову вмикаємо сигнали віджета, щоб він знову став "живим" для користувача
 
-    def get_curr_data(self): # вертає дані типу: [11, 'HDD'], тобто те шо користув сам обрав в вип_списку
+    def get_curr_data(self): # вертає список типу: [11, 'HDD'], тобто те шо користув сам обрав в вип_списку
         result = self.vupad_spusok.currentData()
         return result  
+
+    def get_curr_string(self): # Повертає звичайний рядок
+        return self.vupad_spusok.currentText()
 
     def get_curr_index(self): # вертає індекс/пор номер вибраного елемента в випад списку: 0,1,2,3,...
         return self.vupad_spusok.currentIndex()
