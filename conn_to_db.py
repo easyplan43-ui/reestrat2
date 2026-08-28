@@ -182,9 +182,14 @@ class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і міс
         return self.execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
 
 class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються типів точок  до бд
-    def get_type_points(self):       # Зчитує табл типів точок продажу, складів одним запитом цілу таблицю
-        query = f"SELECT [Type] FROM {self._name_table};"
-        return self.execute_query(query)
+    def __init__(self, name_table):
+            # Обов'язково викликаємо конструктор базового класу WorkDB.
+            # Це створить self._name_table та self.error_zaputy всередині цього об'єкта.
+            super().__init__(name_table)
+    
+    def get_type_points(self, id_col, name_col):       # Викор для зчитування довідників одним запитом цілу таблицю
+        query = f"SELECT [{id_col}], [{name_col}] FROM {self._name_table} ORDER BY [{name_col}];"
+        return self.execute_query(query) #  Повертає пару (ID, Назва) для будь-якої таблиці.
 
 class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і містить методи із запитами які виводять дані про продукт із двох таблиць JOIN  
     # Цей метод виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку:
@@ -232,7 +237,7 @@ class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містит
 
     #  виводить дані про склади/магазини в залежності від типу точки яку обрав користувач в випад списку
     def get_sklad_details_by_categ(self, all_columns, category):
-            query = f"""SELECT {all_columns} FROM {self._name_table} WHERE Type LIKE ?;"""
+            query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Type] LIKE ?;"""
             print(category)
             param = f"%{category}%"  # захист від SQL Injection
             return self.execute_query(query, (param,))

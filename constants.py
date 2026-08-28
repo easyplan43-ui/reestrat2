@@ -39,4 +39,8 @@ Schema2 = 'inventory'
 Table_typepoint = f"{Schema2}.Type_points"
 Table_skladu = f"{Schema2}.Skladu"
 
+Schema3 = 'contragent'
+Table_typeagent = f"{Schema3}.Agent_type"
+Table_agentu = f"{Schema3}.Agentu"
+
 File_conf_roles = 'users_roles.yaml'

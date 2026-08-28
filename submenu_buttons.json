@@ -54,7 +54,9 @@
     },
     "Адміністратору": {
         "+ Новий склад": "InsNewSklad",
-        "+ Новий агент": "InsNewAgent",
-        "+ Новий клієнт": "InsNewClient"
+        "+ Новий контрагент": "InsNewAgent",
+        "+ Новий підрозділ": "InsNewDepart",
+        "+ Новий рахунок": "InsNewRakh"
+
     }
 }
