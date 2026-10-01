@@ -29,13 +29,13 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         self.central_widget = QWidget()  # Головний віджет
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout(self.central_widget) # Вертикальний розподіл: вгорі категорії, підкатегорії пошук, внизу - таблиця
-
+       
         self.ekzemp_vupad_spusok     = VupadSpusokManager(self.ekzemp_category.get_category_and_id, "Виберіть категорію товара") # Створ екземп класу по роботі з випад списками
-        self.ekzemp_sub_vupad_spusok = VupadSpusokManager(self.ekzemp_category.get_subcategory_by_id, "Виберіть підкатегорію товара")
+        self.ekzemp_sub_vupad_spusok = VupadSpusokManager(None, "Виберіть підкатегорію товара")  # не передаємо метод а наразі None передаємо, а дальше передамо назву потр методу 
         self.ekzemp_table            = TablManager(sortyvatu = True)   # Створ екземп класу по роботі із таблицею відображення інфи на екрані
       
         # ------------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
-        self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире якийсь елем у випад_списку, показуємо sub список під головн випад списком
+        self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире елем у випад_списку, беремо дані які для нас дістає сигнал changed і передаємо їх в prepare_form_sub_vupad_spus
         self.ekzemp_sub_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю    
                
     def _get_spusok_stovp_transl(self, tablename):  # //tested// для конкр таблиці дістає список стовпців, які треба перек на україн і вивести в таблицю на екран
@@ -67,11 +67,12 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
     def prepare_to_insert(self, list_users_data):  # тут це метод-заглушка, для отримання і передачі списку list_users_data на дочірн клас
         pass
 
-    def prepare_form_sub_vupad_spus(self, data): # Підготовка до формування sub_vupad_spusok
+    def prepare_form_sub_vupad_spus(self, data): # Підготовка до формування sub_vupad_spusok, в data дані потрапляють через сигнал changed
         if data:    # Якщо вибрано реальний елемент (не дефолт)
             WorkwithWidgets.hide_widgets(self.widg_to_hide)  # з дочірн класу кажемо які віджети сховати
             cat_id, _, self.cat_tag, *_ = data  # 1 і 3 елем з data присвою cat_id, cat_tag, а все інше (скільки б там не було) піде в порожнечу _
-            self.ekzemp_sub_vupad_spusok.add_items(cat_id)  # за cat_id виводимо id і назву sub_категорії  
+            self.ekzemp_sub_vupad_spusok.peredana_func = self.ekzemp_category.get_subcategory_by_id # передаємо назву методу
+            self.ekzemp_sub_vupad_spusok.add_items(cat_id)  # за cat_id виводимо id і назву sub_категорії, тут cat_id потрапляє у *args методу add_items 
             self.ekzemp_sub_vupad_spusok.show()
         else:  # Якщо вибрано дефолтний елемент 
             WorkwithWidgets.hide_widgets([self.ekzemp_sub_vupad_spusok] + self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і  

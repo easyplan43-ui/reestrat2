@@ -175,13 +175,13 @@ class InputValidator:  # Клас-помічник, використ його у
 class VupadSpusokManager(QWidget): # Створює наповнює випад списки
     changed = pyqtSignal(object) 
     def __init__(self, peredana_func, default_item, parent=None):
-        super().__init__(parent) 
-        self.peredana_func = peredana_func      # Зберігаємо посилання на функцію
-        self.default_item = default_item 
-        self.layout = QHBoxLayout(self)
-        self.vupad_spusok = QComboBox()
-        self.layout.addWidget(self.vupad_spusok)
-        self.add_items()
+        super().__init__(parent)     # Ініціалізує базовий клас QWidget
+        self.peredana_func = peredana_func      # Зберігаємо посилання на функцію як зміну
+        self.default_item = default_item        # для тексту підказки
+        self.layout = QHBoxLayout(self)         # створ горизон макет
+        self.vupad_spusok = QComboBox()         # створ реальний випад список
+        self.layout.addWidget(self.vupad_spusok)  # запих випад список в середину макета layout
+        self.add_items()      # виклик методу який заповнює список даними
         # Як тільки юзер клацне на інший рядок в вип_списку, негайно виконуй код у _handle_change
         self.vupad_spusok.currentIndexChanged.connect(self._handle_change)   # Підключаємо сигнал ПІСЛЯ першого заповнення
 
@@ -192,10 +192,10 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
     def add_items(self, *args):   # ПОЛІМОРФІЗМ працює як із статичними даними в памяті так і з SQL, добавл до випад списку дефолтний і нові значення
         self.vupad_spusok.blockSignals(True)  # виключ сигнал currentIndexChanged, щоб при clear або заповн не запускати інші функц які реагують
         self.vupad_spusok.clear()   # очистка перед завантаженням нових зн
-        self.vupad_spusok.addItem(self.default_item, None)   
-        if not args and self.peredana_func.__code__.co_argcount > 1:  #  і функція (peredana_func) очікує їх (більше ніж один обов'язковий self
-           self.vupad_spusok.blockSignals(False)                      #  то виходим з методу не заповняючи вип список
-           return
+        self.vupad_spusok.addItem(self.default_item, None) 
+        if self.peredana_func is None:  # Якщо функція не передана то -
+            self.vupad_spusok.blockSignals(False)  # роєзблуковуємо віджет
+            return    #  виходимо із методу
         try:
            data_list = self.peredana_func(*args)  # динам виклик функц посилання на яку збереж у peredana_func
            if data_list: # список кортежів [(7, 'Брокер'), (1, 'Клієнт'), (5, 'Комітент'), (4, 'Перевізник'),...
@@ -204,7 +204,7 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
                     if len(item) > 1:         # Оскільки pyodbc.Row веде себе як список, просто перевіряємо довжину
                         name = str(item[1])   # Якщо елементів більше 1, беремо саме другий (індекс 1):  'Брокер', 'Клієнт'
                     else:
-                        name = str(item[0])
+                        name = str(item[0])   # беремо перший елемент - це id із бд
                 except:
                     name = str(item)   # Якщо item не є списком або сталася інша помилка, просто перетворюємо весь об'єкт на рядок.
                 self.vupad_spusok.addItem(name, list(item)) # name — те, що бачить користувач, list(item) — приховані дані (весь рядок БД),

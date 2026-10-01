@@ -181,16 +181,6 @@ class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і міс
         query = f"SELECT Catid, Catname FROM {self._name_table} WHERE Parentid = ?;"
         return self.execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
 
-class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються типів точок  до бд
-    def __init__(self, name_table):
-            # Обов'язково викликаємо конструктор базового класу WorkDB.
-            # Це створить self._name_table та self.error_zaputy всередині цього об'єкта.
-            super().__init__(name_table)
-    
-    def get_type_points(self, id_col, name_col):       # Викор для зчитування довідників одним запитом цілу таблицю
-        query = f"SELECT [{id_col}], [{name_col}] FROM {self._name_table} ORDER BY [{name_col}];"
-        return self.execute_query(query) #  Повертає пару (ID, Назва) для будь-якої таблиці.
-
 class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і містить методи із запитами які виводять дані про продукт із двох таблиць JOIN  
     # Цей метод виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку:
     def get_product_details(self, all_columns, depend_table, cortege_fk_prim_key, cortege_fk_prim_key_where, sub_cat_id):
@@ -225,22 +215,45 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
                         END CATCH"""
         return self.execute_query_insert(query, params)
         
-class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви складів і їх адреси
-    def __init__(self, name_table):
-        # Обов'язково викликаємо конструктор базового класу WorkDB.
-        # Це створить self._name_table та self.error_zaputy всередині цього об'єкта.
-        super().__init__(name_table)
+class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами для типів складів/магазинів і для контрагентів до бд
+    def get_type_points(self, id_col, name_col):       # Викор для зчитування довідників одним запитом цілу таблицю
+        query = f"SELECT [{id_col}], [{name_col}] FROM {self._name_table} ORDER BY [{name_col}];"
+        return self.execute_query(query) #  Повертає пару (ID, Назва) для будь-якої таблиці.
 
+class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви складів і їх адреси
     def insert_in_tables(self, list_stovp_bez_id, kilk_stovp, params):     # метод додавання нової позиції складу/магазину
         query = f"""INSERT INTO {self._name_table} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * kilk_stovp)});"""
         return self.execute_query_insert(query, params)
 
     #  виводить дані про склади/магазини в залежності від типу точки яку обрав користувач в випад списку
-    def get_sklad_details_by_categ(self, all_columns, category):
-            query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Type] LIKE ?;"""
-            print(category)
-            param = f"%{category}%"  # захист від SQL Injection
+    #def get_sklad_details_by_categ(self, all_columns, category):
+    #        query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Type] LIKE ?;"""
+    #        param = f"%{category}%"  # захист від SQL Injection
+    #        return self.execute_query(query, (param,))
+
+    def get_sklad_details_by_categ(self, all_columns, id):
+                query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Typeid] = ?;"""
+                return self.execute_query(query, (id,))
+    
+    # Цей метод виводить всі характеристики складу згідно тексту який ввів користув в полі пошуку Search
+    def get_sklad_details_by_search(self, all_columns, query_text, eng_criteria):
+            query = f"""SELECT {all_columns} FROM {self._name_table} WHERE {eng_criteria} LIKE ?;"""
+            param = f"%{query_text}%"  # захист від SQL Injection
             return self.execute_query(query, (param,))
 
-   
+class ZaputuAgentu(WorkDB): # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви контагентів і їх адреси, телеф     
+    def insert_in_tables(self, list_stovp_bez_id, kilk_stovp, params):     # метод додавання нового контрагента
+        query = f"""INSERT INTO {self._name_table} ({list_stovp_bez_id}) VALUES ({', '.join(['?'] * kilk_stovp)});"""
+        return self.execute_query_insert(query, params)
+    
+        #  виводить дані про агента в залежності від його типу яку обрав користувач в випад списку
+    def get_agent_details_by_categ(self, all_columns, id):
+        query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Roleid] = ?;"""
+        return self.execute_query(query, (id,))
+    
+        # Цей метод виводить всі характеристики агента згідно тексту який ввів користув в полі пошуку Search
+    def get_agent_details_by_search(self, all_columns, query_text, eng_criteria):
+        query = f"""SELECT {all_columns} FROM {self._name_table} WHERE {eng_criteria} LIKE ?;"""
+        param = f"%{query_text}%"  # захист від SQL Injection
+        return self.execute_query(query, (param,))
 
