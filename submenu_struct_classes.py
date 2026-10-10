@@ -14,7 +14,6 @@ class BasicUnion(QMainWindow):       #      Універс. Батьківськ
     def __init__(self, table_type, maintext_vupadspusky):  # сюда ми в дочір класах запихаємо назву таблиці яку нам потрібно: типи складів або типи агентів
         super().__init__()
         self.ekzemp_typepoint = ZaputuTypepoint(table_type)   # Створ екземпляр класу для роботи з типами точок, передаючи назву таблиці
-       
         self.dict_stovp_main = []
         self.list_widgets = []
         self.widg_to_hide = []     # Цей список я використ в методі prepare_form_sub_vupad_spus, де дочірні класи сюда перед різні віджети to hide
@@ -44,7 +43,7 @@ class BasicUnion(QMainWindow):       #      Універс. Батьківськ
             return True  # заверш роботу бо корист вибрав категорію позамовченю
         else:  # Якщо користув обрав якусь реальну не дефолтну категорію
             return False
-            
+
 class SkladandMarket(BasicUnion):    #----------------  дочір клас Реалізує вкладку  - Склади і магазини ---------------------------- 
     def __init__(self):
         super().__init__(Table_typepoint, "Виберіть тип точки")   # Виконати спочатку все що є в конструкторі базового класу, тобто запускаєм констр базового класу спочатку
@@ -55,6 +54,7 @@ class SkladandMarket(BasicUnion):    #----------------  дочір клас Ре
         self.update_btn       = QPushButton("Оновити")   #    Створюємо кнопку Оновити дані з бд
         self.search_input     = QLineEdit()              #  Це поле пошуку чогось / поле вводу  
         self.search_btn       = QPushButton("Пошук")     # Кнопка пошуку       
+        self.total_lab        = QLabel()                 # виводимо загальну кількість стовпців в таблиці 
         self.radio_btn = []    # Це Список радіокнопок, а не одна кнопка, які динамічно створюються для визнач критерію пошуку
         self.ekzemp_sklad     = ZaputuSkladu(Table_skladu)    # Створюємо екземпляр класу для роботи із складами 
         self.pered_func_stovp = self.ekzemp_sklad.get_all_stovp_bez_identity  # передаю назву метода який витяг назви стовп із бд
@@ -62,13 +62,13 @@ class SkladandMarket(BasicUnion):    #----------------  дочір клас Ре
         self.search_layout.addWidget(self.ekzemp_vupad_spusok)      # Екземпляр Випадаючого списоку додаємо до панелі пошуку інформації
         self.search_layout.addWidget(self.update_btn) 
         self.form_radiobtns()       # Метод створює, формує радіокнопки і робить одну по замовченю обраною
-        self.widg_to_hide = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати self.ekzemp_table        
         self.search_layout.addWidget(self.search_input)
         self.search_layout.addWidget(self.search_btn)
+        self.search_layout.addWidget(self.total_lab)
         self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
         self.search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
 
-        self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу] # Початк список віджетів, що тут додаш, то вже не треба #буде редагувати цей список протягом цілого класу
+        self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn, self.total_lab] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу] # Початк список віджетів, що тут додаш, то вже не треба #буде редагувати цей список протягом цілого класу
         
         WorkwithWidgets.hide_widgets(self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
         self.main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
@@ -98,6 +98,8 @@ class SkladandMarket(BasicUnion):    #----------------  дочір клас Ре
                        return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
                     self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
                     self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці даними
+                    kilk_radkiv = self.ekzemp_table.rowCount() # кількість рядків із таблиці яка виведена на екран
+                    self.total_lab.setText(f"Всього: {kilk_radkiv} рядків") # виводимо мітку -  Всього N рядків - в таблиці
                     WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
                 else:
                     logger_db_conn.error(f"Не сформовано список українських назв стовпців")
@@ -135,6 +137,9 @@ class SkladandMarket(BasicUnion):    #----------------  дочір клас Ре
             else:    #  якщо корист щось ввів і це знайдено  в бд   
                 self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
                 self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці знайденими даними
+                kilk_radkiv = self.ekzemp_table.rowCount() # кількість рядків із таблиці яка виведена на екран
+                self.total_lab.setText(f"Всього: {kilk_radkiv} рядків") # виводимо мітку -  Всього N рядків - в таблиці
+                               
                 self.search_input.clear()   # Очищаємо поле Search
                 WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
     
@@ -168,7 +173,8 @@ class Contragents(BasicUnion):    #----------------  дочір клас Реа�
             self.search_layout    = QHBoxLayout()            #     Створюємо Горизонт панель де розміщено категорія і пошук 
             self.update_btn       = QPushButton("Оновити")   #    Створюємо кнопку Оновити дані з бд
             self.search_input     = QLineEdit()              #  Це поле пошуку чогось / поле вводу  
-            self.search_btn       = QPushButton("Пошук")     # Кнопка пошуку       
+            self.search_btn       = QPushButton("Пошук")     # Кнопка пошуку  
+            self.total_lab        = QLabel()                 # виводимо загальну кількість стовпців в таблиці      
             self.radio_btn        = []    # Це Список радіокнопок, а не одна кнопка, які динамічно створюються для визнач критерію пошуку
             self.ekzemp_agent     = ZaputuAgentu(Table_agentu)    # Створюємо екземпляр класу для роботи із складами 
             self.pered_func_stovp = self.ekzemp_agent.get_all_stovp_bez_identity  # передаю назву метода який витяг назви стовп із бд
@@ -176,13 +182,13 @@ class Contragents(BasicUnion):    #----------------  дочір клас Реа�
             self.search_layout.addWidget(self.ekzemp_vupad_spusok)      # Екземпляр Випадаючого списоку додаємо до панелі пошуку інформації
             self.search_layout.addWidget(self.update_btn) 
             self.form_radiobtns()       # Метод створює, формує радіокнопки і робить одну по замовченю обраною
-            self.widg_to_hide = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # в базов класі методу prepare_form_sub_vupad_spus, кажемо сховати self.ekzemp_table        
             self.search_layout.addWidget(self.search_input)
             self.search_layout.addWidget(self.search_btn)
+            self.search_layout.addWidget(self.total_lab)
             self.search_layout.addSpacing(25)  # Відступ між sub випад списком  і полем пошуку
             self.search_layout.addStretch()  # Ця "пружина" штовхає випадаючі списки і кнопку Оновити вліво
     
-            self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу] # Початк список віджетів, що тут додаш, то вже не треба #буде редагувати цей список протягом цілого класу
+            self.list_widgets = [self.ekzemp_table, self.update_btn, self.search_input, self.search_btn, self.total_lab] + self.radio_btn # Початк список віджетів, що тут додаш, то вже не треба буде редагувати цей список протягом цілого класу] # Початк список віджетів, що тут додаш, то вже не треба #буде редагувати цей список протягом цілого класу
             
             WorkwithWidgets.hide_widgets(self.list_widgets)  # Викликаємо служб статичн метод в класі WorkwithWidgets який приховує кнопки і поле Search і 
             self.main_layout.addLayout(self.search_layout)  # макет пошуку (горизонтальний) стає частиною основного вертикального макета
@@ -211,6 +217,8 @@ class Contragents(BasicUnion):    #----------------  дочір клас Реа�
                         return  # Виходимо з функції, бо немає даних з бази немає подальшого сенсу                         
                     self.ekzemp_table.set_headers(list_ukr_namestovp) # Встанов кількість стовпців і їх назви (шабку таблиці)
                     self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці даними
+                    kilk_radkiv = self.ekzemp_table.rowCount() # кількість рядків із таблиці яка виведена на екран
+                    self.total_lab.setText(f"Всього: {kilk_radkiv} рядків") # виводимо мітку -  Всього N рядків - в таблиці
                     WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
                 else:
                     logger_db_conn.error(f"Не сформовано список українських назв стовпців")
@@ -248,6 +256,9 @@ class Contragents(BasicUnion):    #----------------  дочір клас Реа�
             else:    #  якщо корист щось ввів і це знайдено  в бд   
                 self.ekzemp_table.clear_table()  # очищаємо таблицю щоб не показувати старі результати пошуку
                 self.ekzemp_table.fill_table(rows, bagatovum=True)  #  Заповнення таблиці знайденими даними
+                kilk_radkiv = self.ekzemp_table.rowCount() # кількість рядків із таблиці яка виведена на екран
+                self.total_lab.setText(f"Всього: {kilk_radkiv} рядків") # виводимо мітку -  Всього N рядків - в таблиці
+                                  
                 self.search_input.clear()   # Очищаємо поле Search
                 WorkwithWidgets.show_widgets(self.list_widgets)  # Виклик статич метод в класі WorkwithWidgets, який показує віджети
         

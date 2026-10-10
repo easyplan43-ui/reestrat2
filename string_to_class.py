@@ -3,6 +3,7 @@
 from submenu_stock_classes import ZalushTovary, InsertTovar, Peremichena
 from submenu_admin_classes import InsNewSklad, InsNewAgent
 from submenu_struct_classes import SkladandMarket, Contragents
+from submenu_zakypivli_classes import IncomeTovar
 from PyQt6.QtWidgets import QLabel
 Str_to_classname = {     
    "ZalushTovary"  : ZalushTovary,
@@ -12,5 +13,6 @@ Str_to_classname = {
    "InsNewAgent"   : InsNewAgent, 
    "SkladandMarket": SkladandMarket,
    "Contragents"   : Contragents,
+   "IncomeTovar"   : IncomeTovar,
     "QLabel": QLabel  # Якщо використовуєте QLabel як заглушку
 }

@@ -145,7 +145,6 @@ class InsNewAgent(QMainWindow):    #   Реалізує вкладку  - "Ад�
          
     def prepare_form_tabl_forma_vvody(self): # підготовка формування таблиці виводу інфи або форми вводу, в залежності від дочірн класу
         list_kort= self.ekzemp_typeagent.get_neccess_stovpci_and_typejoin(Table_agentu)  # [('Назва точки', 'nvarchar', 50), ('Тип точки', 'nvarchar', 15), ('Місто', 'nvarchar', 20), ('Адреса', 'nvarchar', 50), ('Активний?', 'bit', 1)]
-        print(list_kort) 
         if list_kort:
            self.dict_tabl = DictManager.form_dictionary(list_kort)  # {'Назва точки': {'type': 'nvarchar', 'size': 50}, 'Тип точки': {'type': 'nvarchar', 'size': 15},
            if self.dict_tabl:        # створ словник із ключем: "Тип точки" для випад списку і  "Активний?" для прапорця

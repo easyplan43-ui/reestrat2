@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QTableWidgetItem, QHeaderView, QMessageBox, QWidget, QHBoxLayout, QComboBox, QTableWidget, QFormLayout, QLineEdit, QPushButton, QScrollArea
-from PyQt6.QtWidgets import QVBoxLayout, QCheckBox
-from PyQt6.QtCore import Qt, QDate, QRegularExpression, pyqtSignal # для спілкування обєктів між собою для сигналів і випад списків
+from PyQt6.QtWidgets import QVBoxLayout, QCheckBox, QDateEdit, QCompleter
+from PyQt6.QtCore import Qt, QDate, QRegularExpression, pyqtSignal, QObject, QEvent, QTimer # для спілкування обєктів між собою для сигналів і випад списків
 from PyQt6.QtGui import QRegularExpressionValidator
 from decimal import Decimal
 import datetime
@@ -172,7 +172,7 @@ class InputValidator:  # Клас-помічник, використ його у
             validator = QRegularExpressionValidator(regex, widget)   #  Створює сам об'єкт-валідатор, який буде фільтрувати введення «на льоту»
             widget.setValidator(validator)   #  Прив’язує валідатор до віджета, після чого користувач просто не зможе натиснути клавішу, яка порушує правило. 
 
-class VupadSpusokManager(QWidget): # Створює наповнює випад списки
+class VupadSpusokManager(QWidget): # Створює наповнює випад список із пошуком і вводом, а наслідує пусту панель QWidget, бо це складний міні-інтерфейс
     changed = pyqtSignal(object) 
     def __init__(self, peredana_func, default_item, parent=None):
         super().__init__(parent)     # Ініціалізує базовий клас QWidget
@@ -180,14 +180,40 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         self.default_item = default_item        # для тексту підказки
         self.layout = QHBoxLayout(self)         # створ горизон макет
         self.vupad_spusok = QComboBox()         # створ реальний випад список
+        self.vupad_spusok.setEditable(True)     # Дозволяє вводити текст користувачу, вмонтовуємо тескт поле QLineEdit в середину вип. списку
+        self.vupad_spusok.setInsertPolicy(QComboBox.InsertPolicy.NoInsert) # щоб в кінець списка не додалося той текст із помилкою який ввів корист
         self.layout.addWidget(self.vupad_spusok)  # запих випад список в середину макета layout
-        self.add_items()      # виклик методу який заповнює список даними
+        self._on_click_defaulttext()  # метод спрацьовує при клікані курсором на дефолтне значення в випад списку
+        self.add_items()      # виклик методу який заповнює/загружає список даними
         # Як тільки юзер клацне на інший рядок в вип_списку, негайно виконуй код у _handle_change
         self.vupad_spusok.currentIndexChanged.connect(self._handle_change)   # Підключаємо сигнал ПІСЛЯ першого заповнення
 
     def _handle_change(self):  # внутрішній «обробник», який спрацьовує, коли ти вибираєш новий пункт у випадаючому списку
         data = self.vupad_spusok.currentData()  # data типу: [3, 'Процесори', 'cpu'] або [5, 'AMD Ryzen']
         self.changed.emit(data) # Сигнал emit передає дані в той  метод який підключ до сигналу changed десь в зовн коді
+
+    def _on_click_defaulttext(self):  #  Перехоплює клік мишкою по дефолтному тексту у випад списку та очищає текст для вводу
+        line_edit = self.vupad_spusok.lineEdit() # дістаєм прихов текстове поле всередині випад списку
+        if line_edit:
+            class DetectClicking(QObject):  # створ новий ВКЛАДЕНИЙ клас - детектор, який регує на клік всеред комірки і на реакція на отримання фокусу
+                def __init__(self, manager, le): # manager - посиланя на головн клас VupadSpusokManager, щоб викон manager.vupad_spusok.showPopup()
+                    super().__init__(manager) # виклик конструктор класу QObject і передаєм туди manager 
+                    self.manager = manager
+                    self.le = le   # le -  посилання на те саме текстове поле line_edit
+
+                def eventFilter(self, obj, event):    # Відловлюємо саме клік мишкою (MouseButtonPress) або фокус
+                    if event.type() == QEvent.Type.MouseButtonPress or event.type() == QEvent.Type.FocusIn:  # поле отримало фокус 
+                       QTimer.singleShot(30, self.delayed_clear) # після 30 мс виклик метод delayed_clear
+                    return super().eventFilter(obj, event) # передаємо подію далі батькові QObject у його внутр метод внутрішній метод eventFilter
+
+                def delayed_clear(self):   # очищає старий текст із комірки і відкрив порожній список для пошуку
+                    self.manager.vupad_spusok.blockSignals(True) # Блокуємо сигнали, щоб зміна індексу на -1 не викликала передчасно каскад методів
+                    self.manager.vupad_spusok.setCurrentIndex(-1)  # скидаємо індекс в -1 (нічого не обрано)
+                    self.le.clear()   # Очищаємо текст повністю
+                    self.manager.vupad_spusok.showPopup()  #  Відкриваємо випадаючий список — тепер він відкриється ПУСТИМ
+            
+            self._focus_filter = DetectClicking(self, line_edit) # створ екземп класу і перед йому посил на line_edit
+            line_edit.installEventFilter(self._focus_filter) # коли відбув подія із line_edit, то відсил цю подію до _focus_filter на перевірку
 
     def add_items(self, *args):   # ПОЛІМОРФІЗМ працює як із статичними даними в памяті так і з SQL, добавл до випад списку дефолтний і нові значення
         self.vupad_spusok.blockSignals(True)  # виключ сигнал currentIndexChanged, щоб при clear або заповн не запускати інші функц які реагують
@@ -199,6 +225,7 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         try:
            data_list = self.peredana_func(*args)  # динам виклик функц посилання на яку збереж у peredana_func
            if data_list: # список кортежів [(7, 'Брокер'), (1, 'Клієнт'), (5, 'Комітент'), (4, 'Перевізник'),...
+             name_for_search = []  # цей список створ для completer бо він вміє працюв лише із текстов рядком str
              for item in data_list:
                 try:
                     if len(item) > 1:         # Оскільки pyodbc.Row веде себе як список, просто перевіряємо довжину
@@ -208,6 +235,11 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
                 except:
                     name = str(item)   # Якщо item не є списком або сталася інша помилка, просто перетворюємо весь об'єкт на рядок.
                 self.vupad_spusok.addItem(name, list(item)) # name — те, що бачить користувач, list(item) — приховані дані (весь рядок БД),
+                name_for_search.append(name) # зберігаємо чистий текст для completer
+             completer = QCompleter(name_for_search, self)  # Налаштовуємо автодоповнення та розумний пошук (Completer)
+             completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)  # Пошук буде працювати незалежно від великої/малої літери  
+             completer.setFilterMode(Qt.MatchFlag.MatchContains)   # Шукає збіг у будь-якій частині назви (наприклад, ввели "Трейд" -> знайшло "ТОВ 'Агро-Трейд'")
+             self.vupad_spusok.setCompleter(completer)   # зєднуємо пошуковий рушій completer до нашого випад. списку
         finally:
             self.vupad_spusok.blockSignals(False)  # знову вмикаємо сигнали віджета, щоб він знову став "живим" для користувача
 
@@ -215,7 +247,7 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         result = self.vupad_spusok.currentData()
         return result  
 
-    def get_curr_string(self): # Повертає звичайний рядок
+    def get_curr_string(self): # Метод повертає що вибрав або ввів користувач - звичайний рядок
         return self.vupad_spusok.currentText()
 
     def get_curr_index(self): # вертає індекс/пор номер вибраного елемента в випад списку: 0,1,2,3,...
@@ -335,6 +367,21 @@ class CheckBoxManager(QCheckBox): # Клас реалізує прапорець
     
     def get_value(self):   #  Повертає стан прапорця  True/False
         return self.isChecked() 
+
+class CellDataManag(QDateEdit): # Керує роботою комірки із вибором дати
+    def __init__(self, parent=None):
+        super().__init__(parent) # виклик конструкт батьківського класу 
+        self._init_settings()
+
+    def _init_settings(self):                 # Початкова ініціалізація
+        today = QDate.currentDate()           # отримуємо поточну дату на сьогодні  
+        self.setDate(today)                   # встановлюємо цю дату за замовчуванням
+        self.setCalendarPopup(True)           # Вмикаємо режим календарної сітки (робить його саме ВИПАДАЮЧИМ календарем)
+        self.setDisplayFormat("yyyy-MM-dd")   # Формат виводу дати (ДД.ММ.РРРР)
+        self.setMaximumDate(today)            # ЗАБОРОНЯЄМО вибір майбутніх дат (максимум — це сьогодні)
+
+    def get_date(self): # Повертає дату у безпечному та правильному форматі для MS SQL Server
+        return self.date().toString("yyyy-MM-dd")        
    
 
 

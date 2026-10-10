@@ -226,14 +226,15 @@ class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містит
         return self.execute_query_insert(query, params)
 
     #  виводить дані про склади/магазини в залежності від типу точки яку обрав користувач в випад списку
-    #def get_sklad_details_by_categ(self, all_columns, category):
-    #        query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Type] LIKE ?;"""
-    #        param = f"%{category}%"  # захист від SQL Injection
-    #        return self.execute_query(query, (param,))
-
     def get_sklad_details_by_categ(self, all_columns, id):
                 query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Typeid] = ?;"""
                 return self.execute_query(query, (id,))
+
+    #  виводить короткі дані про склади/магазини в залежності від типу точки яку обрав користувач в випад списку
+    def get_sklad_short_details_by_categ(self, id=None): # id = None щоб програма не падала при старті
+                query = f"""SELECT [Name] FROM {self._name_table} WHERE [Typeid] = ?;"""
+                return self.execute_query(query, (id,))
+    
     
     # Цей метод виводить всі характеристики складу згідно тексту який ввів користув в полі пошуку Search
     def get_sklad_details_by_search(self, all_columns, query_text, eng_criteria):
@@ -249,6 +250,11 @@ class ZaputuAgentu(WorkDB): # наслідує клас WorkDB і містить
         #  виводить дані про агента в залежності від його типу яку обрав користувач в випад списку
     def get_agent_details_by_categ(self, all_columns, id):
         query = f"""SELECT {all_columns} FROM {self._name_table} WHERE [Roleid] = ?;"""
+        return self.execute_query(query, (id,))
+
+        #  виводить короткі дані про агента в залежності від його типу яку обрав користувач в випад списку
+    def get_agent_short_details_by_categ(self, id=None):
+        query = f"""SELECT [Agentname] + '_' + [Edprou] FROM {self._name_table} WHERE [Roleid] = ?;"""
         return self.execute_query(query, (id,))
     
         # Цей метод виводить всі характеристики агента згідно тексту який ввів користув в полі пошуку Search
