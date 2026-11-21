@@ -38,9 +38,15 @@ Table_translate2 = f"{Schema}.Transl_stovpci2"
 Schema2 = 'inventory'
 Table_typepoint = f"{Schema2}.Type_points"
 Table_skladu = f"{Schema2}.Skladu"
+Table_ostatku = f"{Schema2}.Zalushku"
 
 Schema3 = 'contragent'
 Table_typeagent = f"{Schema3}.Agent_type"
 Table_agentu = f"{Schema3}.Agentu"
+
+Schema4 = 'docum'
+Table_price = f"{Schema4}.Prices"
+Table_typeprice = f"{Schema4}.Type_price"
+Table_nakladdet = f"{Schema4}.Nakladna_det"
 
 File_conf_roles = 'users_roles.yaml'

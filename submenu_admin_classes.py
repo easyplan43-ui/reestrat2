@@ -135,11 +135,11 @@ class InsNewAgent(QMainWindow):    #   Реалізує вкладку  - "Ад�
         self.prepare_form_tabl_forma_vvody() #  динамічно будуємо і наповнюємо нашу форму з БД
         
         # -------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
-        # метод get_userdata_from_form є ПІДПИСАНИЙ на сигнал data_submitted із класу FormaVvody 
-        self.ekzemp_forma_vvody.data_submitted.connect(self.get_userdata_from_form) 
+        # метод get_userdata_from_form є ПІДПИСАНИЙ на сигнал signal_dict із класу FormaVvody 
+        self.ekzemp_forma_vvody.signal_dict.connect(self.get_userdata_from_form) 
        
     def get_userdata_from_form(self, data_user): #  метод викликается автомат, коли у формі вводу натискають 'Внести' і дані перевірені і він отрим дані з форми вводу
-        # Цей метод є ПІДПИСАНИМ на сигнал data_submitted із класу FormaVvody
+        # Цей метод є ПІДПИСАНИМ на сигнал signal_dict із класу FormaVvody
         list_user_val = DictManager.get_list_from_val_dict(data_user) # виклик статич метод що вертає список даних які ввів користувач типу ['val1', 'val2', val3]
         self.prepare_to_insert(list_user_val)   # підготовка до INSERT і сам INSERT і передача йому  list_user_val  
          

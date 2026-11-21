@@ -39,7 +39,22 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
        self._name_table = name_table    # _name_table - private, внутр логіка класу, не чіпати ззовні  
        self.error_zaputy = None  # використ щоб передати текст помилки при виконані запиту десь у зовнішн код, ця зміна використ в методі execute_query_insert
 
-    def execute_query(self, query, params=None):  # метод виконує запит до бд, типу SELECT через try 
+    def execute_onequery(self, query, params=None):  # метод виконує запит до бд, типу SELECT через try і повертає кортеж ('.....')
+        # Використовувати коли треба дістати один рядок FETCHONE
+        with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
+            if not conn:
+                return None     # ПОВЕРТАЄМО None
+            try:     
+                with conn.cursor() as cursor:    # Створюємо посередника між Python-кодом і базою даних і курсор буде гарант закрит після отрим даних
+                    cursor.execute(query, params or ())    # Виконуємо запит через курсор, де params or () - перетворює None на порожній кортеж (), що робить виклик безпечним
+                    return cursor.fetchone()               # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів  
+            except Exception as ex:
+                logger_db_conn.error(f"Не вдалося виконати запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
+                return None      # ПОВЕРТАЄМО None
+
+    def execute_query(self, query, params=None):  # метод виконує запит до бд, типу SELECT через try і повертає список кортежів [('.....'), ('...')] 
+        # Використовувати коли треба дістати пару рядків  FETCHALL
         with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
             if not conn:
                 return []     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
@@ -49,9 +64,10 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                     return cursor.fetchall()               # Збирає всі знайдені рядки з бази даних і повертає їх у вигляді списку: кортежів  
             except Exception as ex:
                 logger_db_conn.error(f"Не вдалося виконати запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
                 return []      # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК ПРИ ПОМИЛЦІ ЗАПИТУ
     
-    def execute_query_insert(self, query, params=None): # метод виконує запит до бд, типу INSERT через try
+    def execute_query_insert(self, query, params=None): # метод виконує запит до бд, типу INSERT/DELETE через try
         with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
             if not conn:
                 return False     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
@@ -72,7 +88,31 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                 logger_db_conn.error(f"Не вдалося виконати запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
                 self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
                 return False
-                
+
+    def execute_manyquery(self, query, params):   # виконує МАСОВИЙ INSERT/UPDAT/DELETE через try, тобто коли маємо багато позицій і за раз вставляємо
+        if not params:  # params - це список кортежів типу [(artuk, id), (artuk, id), ...] бо такий тип вимагає executemany
+            return False
+        with DBConnector() as conn:    # conn — це об'єкт Connection або труба двері до бд
+            if not conn:
+                return False     # ПОВЕРТАЄМО ПОРОЖНІЙ СПИСОК, ЯКЩО НЕМАЄ З'ЄДНАННЯ
+            try:     
+                with conn.cursor() as cursor:    # Створюємо посередника між Python-кодом і базою даних і курсор буде гарант закрит після отрим даних
+                    cursor.executemany(query, params)    # Виконуємо запит через курсор, де params or () - перетворює None на порожній кортеж (), що робить виклик безпечним
+                    conn.commit()              # Запиши зміни на диск назавжди 
+                    return True
+            except pyodbc.Error as ex:
+                if conn:
+                    conn.rollback()     #   відкатуємо транзакцію при помилці Бд
+                # Этот блок ловить ошибку, которую пробросил THROW из SQL
+                logger_db_conn.error(f" Помилка бд при виконанні масового запиту. Детали: {ex}")
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
+                return False    
+            except Exception as ex:
+                # Ловить помилки самого Python (наприклад, помилки логіки або типів)
+                logger_db_conn.error(f"Не вдалося виконати масовий запит до: {self._name_table} . Детали: {ex}")         # logger з файлу ragistr_error
+                self.error_zaputy = ex  # текст помилки передаємо на зовн код, щоб вивести в діалог вікні
+                return False  
+
     def _get_target_table(self, table): # Допоміжний внутр. метод для вибору таблиці (якась нова передана таблиця або та що по дефолту)
         return table if table else self._name_table  # Якщо передали назву іншої таблиці — беремо її, якщо ні — беремо ту, що в __init__ в конструкторі
     
@@ -107,6 +147,25 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                  WHERE TC.CONSTRAINT_TYPE = 'FOREIGN KEY'
                  AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}');"""
         return self.execute_query(query)
+
+    def get_stovpci_unique(self, table = None):  # Отримуємо назви всіх  стовпців на Укр в таблиці із властивістю UNIQUE але крім стовпця Primary key
+        target_table = self._get_target_table(table)
+        query = f""" SELECT T.ukr_namestovp, c.name AS ColumnName, isc.DATA_TYPE AS DataType,
+            COALESCE(isc.CHARACTER_MAXIMUM_LENGTH, COLUMNPROPERTY(i.object_id, c.name, 'precision')) AS [Length]
+            FROM sys.indexes i JOIN sys.index_columns ic 
+            ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+            JOIN sys.columns c  
+            ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+            JOIN INFORMATION_SCHEMA.COLUMNS isc
+            ON OBJECT_ID(isc.TABLE_SCHEMA + '.' + isc.TABLE_NAME) = i.object_id
+            AND isc.COLUMN_NAME = c.name
+            LEFT JOIN [hardware].[Transl_stovpci2] T 
+            ON LOWER(c.name) = LOWER(T.eng_namestovp) AND LOWER(T.table_name) = LOWER('{target_table}')
+            WHERE i.object_id = OBJECT_ID('{target_table}')
+            AND i.is_unique = 1 
+            AND i.is_primary_key = 0  
+            AND ic.is_included_column = 0;"""
+        return self.execute_query(query)
     
     def get_foreignkey(self, table = None):    # Отримуємо 1) - назву стовпця з властивістью Foreign key і 2) - назву стовпця на який 1 стовпець зсилається
         target_table = self._get_target_table(table)
@@ -135,7 +194,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
              AND C.DATA_TYPE IN ('varchar', 'nvarchar');"""
         return self.execute_query(query) 
     
-    def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає англ назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
+    def get_neccess_stovpci_and_type(self, table = None):    # по назві таблиці вертає АНГЛ назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
         # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys  
         target_table = self._get_target_table(table)
         query = f"""SELECT COLUMN_NAME, DATA_TYPE,  COALESCE(CHARACTER_MAXIMUM_LENGTH, 
@@ -152,7 +211,7 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
                                AND (TC.TABLE_SCHEMA + '.' + TC.TABLE_NAME) = '{target_table}'); """ 
         return self.execute_query(query)
     
-    def get_neccess_stovpci_and_typejoin(self, table = None): # по назві таблиці вертає укр назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
+    def get_neccess_stovpci_and_typejoin(self, table = None): # по назві таблиці вертає УКР назви не всіх стовпців, їх тип і max кількість символів яка відведена для даного стовпця
         # це той запит із join з таблицею перекладу назв стовпців на укр мову
         # Не всіх стовпців, тобто виключаємо 1) id з властив identity, 2) datetime, 3) Foreign Keys 
         target_table = self._get_target_table(table)
@@ -173,13 +232,20 @@ class  WorkDB:   # Базовий клас, працює із бд, надсил
         return self.execute_query(query)
         
 class ZaputuCategoriesDB(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які стосуються категорій до бд
-    def get_category_and_id(self):    #  Отримуємо назви категорії товару і її id і її tag щоб знати яку таблицю використ: чи Process_det чи Memory_det, ...
+    def get_category_and_id(self, *args):    #  Отримуємо назви категорії товару і її id і її tag щоб знати яку таблицю використ: чи Process_det чи Memory_det, ...
         query = f"SELECT Catid, Catname, tag FROM {self._name_table} WHERE Parentid IS NULL;"
         return self.execute_query(query)  # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або []
 
-    def get_subcategory_by_id(self, id):   #  Отримуємо назви підкатегорій товару за вказаним id
-        query = f"SELECT Catid, Catname FROM {self._name_table} WHERE Parentid = ?;"
-        return self.execute_query(query, (id,))    # звертаємося до методу класу WorkDB, щоб той повернув або cursor.fetchall() або [] 
+    def get_subcategory_by_id(self, *args):  # Отримуємо назви підкатегорій товару за вказаним id, який летить в кошик args
+        # Безпечно дістаємо cat_id. Якщо args порожній (наприклад, викликали вручну), ставимо None
+        if args:
+            id = args[0]
+        else: id = None    
+        if id is not None:  # Якщо ID передано, фільтруємо підкатегорії по Parentid
+            query = f"SELECT Catid, Catname FROM {self._name_table} WHERE Parentid = ?;"
+            return self.execute_query(query, id) # передаємо cat_id як параметр запиту
+        else:  #  якщо чомусь ID не прийшов, повертаємо порожній список, щоб не було помилки
+            return []
 
 class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і містить методи із запитами які виводять дані про продукт із двох таблиць JOIN  
     # Цей метод виводить всі характеристики продукта з двох таблиць WHERE за вибраною підкатегорією в sub випадаючому списку:
@@ -188,7 +254,26 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
                {depend_table} AS d ON m.{cortege_fk_prim_key[0][1]} = d.{cortege_fk_prim_key[0][0]} 
                 WHERE m.{cortege_fk_prim_key_where[0][0]} = ?;"""
         return self.execute_query(query, (sub_cat_id,))
+
+    # виводить короткі дані про продукт в залежності від підкатегорії яку обрав користув в випадаючому списку
+    def get_product_short_detail(self, *args):
+        # Безпечно дістаємо cat_id. Якщо args порожній (наприклад, викликали вручну), ставимо None
+        if args:
+            id = args[0]
+        else: id = None    
+        if id is not None:  # Якщо ID передано,
+            query = f"""SELECT [Prodid], [Nazva_tov] FROM {self._name_table} WHERE [Category_catid] = ?;"""
+            return self.execute_query(query, (id,))
+        else:  #  якщо чомусь ID не прийшов, повертаємо порожній список, щоб не було помилки
+            return []
     
+    def get_artuk_zartuk(self, *args): # виводить артикул, зовн_артикул
+        if args:
+           id = args[0]
+        else: id = None    
+        if id is not None:  # Якщо ID передано,   
+            query = f"""SELECT [Artukyl], [ZArtukyl] FROM {self._name_table} WHERE [Prodid] = ?;"""
+            return self.execute_onequery(query, (id,))
     # Цей метод виводить всі характеристики продукта з двох таблиць згідно тексту який ввів користув в полі пошуку Search
     def get_product_details_by_search(self, all_columns, depend_table, cortege_fk_prim_key, query_text, eng_criteria):
         query = f"""SELECT {all_columns} FROM {self._name_table} AS m INNER JOIN 
@@ -214,10 +299,18 @@ class ZaputuProductDB(WorkDB):  # наслідує клас WorkDB і місти
                             THROW;     -- <--- ОБЯЗАТЕЛЬНО: перерве виконання і пробрасывает ошибку в Python
                         END CATCH"""
         return self.execute_query_insert(query, params)
-        
-class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами для типів складів/магазинів і для контрагентів до бд
-    def get_type_points(self, id_col, name_col):       # Викор для зчитування довідників одним запитом цілу таблицю
-        query = f"SELECT [{id_col}], [{name_col}] FROM {self._name_table} ORDER BY [{name_col}];"
+
+    def select_all_id(self):  # Витягаємо всі id, наразі я використовува для вставки ZArtukyl 
+        query = f"SELECT prodid FROM {self._name_table} ORDER BY prodid"   
+        return self.execute_query(query)   #  Повертає список кортежів ids
+
+    def update_zartukyl(self, artuk_id):  # Масово Вставляє/Оновлює ZArtukyls
+        query = f"UPDATE {self._name_table} SET ZArtukyl = ? WHERE prodid = ?"
+        return self.execute_manyquery(query, artuk_id)
+      
+class ZaputuTypepoint(WorkDB):   # наслідує клас WorkDB і містить методи із запитами для типів складів/магазинів/цін і для контрагентів до бд
+    def get_type_points(self, id_col, name_col, filtr_kogo_pokaz=""):       # Викор для зчитування довідників одним запитом цілу таблицю
+        query = f"SELECT [{id_col}], [{name_col}] FROM {self._name_table} {filtr_kogo_pokaz} ORDER BY [{name_col}];" # де filtr_kogo_pokaz - це необовязковий SQL додаток
         return self.execute_query(query) #  Повертає пару (ID, Назва) для будь-якої таблиці.
 
 class ZaputuSkladu(WorkDB):   # наслідує клас WorkDB і містить методи із запитами які виводять дані про назви складів і їх адреси

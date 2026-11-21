@@ -76,7 +76,7 @@ class SkladandMarket(BasicUnion):    #----------------  дочір клас Ре
         self.main_layout.addWidget(self.ekzemp_table, stretch=1)   #  stretch=1 означає "забрати все вільне місце" 
         self.main_layout.addStretch()  # Ця "пружина" штовхає головний макет вгору
          # ---------------------------------------------------------- Сигнали ------------------------------------------------------------------ 
-        self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибире якийсь елем у випад_списку- виводимо таблицю 
+        self.ekzemp_vupad_spusok.signal_select_val.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибире якийсь елем у випад_списку- виводимо таблицю 
         self.update_btn.clicked.connect(self.prepare_form_tabl_forma_vvody)   # При нажатті на кнопку "Оновити" дізаємося який саме пункт вибраний в підменю  
         self.search_btn.clicked.connect(self.check_searched_text)   # При нажатті на кнопку Пошуку йде перевірка введеного тексту з подальшим пошуком в бд
         for i in range(len(self.radio_btn)):

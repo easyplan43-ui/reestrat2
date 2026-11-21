@@ -9,7 +9,7 @@ import os
 from constants import SUBMENU_FILE
 
 class FormaVvody(QWidget):  # клас по роботі з полем вводу і кнопкою "Внести" що залеж від нього
-    data_submitted = pyqtSignal(dict)  #  Створюємо сигнал для надсилання словника від корист на ззовні, бо цей сигн працює тільки з даними типу dict
+    signal_dict = pyqtSignal(dict)  #  Створюємо сигнал для надсилання словника від корист на ззовні, бо цей сигн працює тільки з даними типу dict
     def __init__(self): 
         super().__init__()
         self.layout = QVBoxLayout(self)           # головн layout для самого класу
@@ -37,9 +37,9 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
                     widget.deleteLater()   #   безпечно видаляє віджет із пам'яті, щоб він не залиш при переключені між
         
         self.dict_input = {}
-        for key, inner_dict in diction.items():    #   inner_dict — це внутрішній словник {'type': 'varchar', 'size': 25}
+        for key, inner_dict in diction.items():    # key = Артикул, inner_dict — це внутр слов {'name': 'Artukyl', 'type': 'varchar', 'size': 25}
             if key in ext_widgets:   # логіка для наприклад випад списку чи прапорця
-                pole_vvody = ext_widgets[key]  # де pole_vvody типу: <dodat_classes.VupadSpusokManager object at 0x000002393BDDCE10> 
+                pole_vvody = ext_widgets[key]  # де pole_vvody це посилання на обєкт віджета із ext_widgets 
             else:    # Стандартна логіка для QLineEdit    
                 datatype = inner_dict.get('type')      # Безпечно дістаємо тип та розмір (якщо size немає, поверне None)
                 size = inner_dict.get('size')
@@ -53,24 +53,25 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
             else:      # Для всіх інших віджетів (наприклад, QLineEdit) залишаємо стандартний підпис із двокрапкою                 
                 self.text_forma_vvody.addRow(f"{key}:", pole_vvody)
             self.dict_input[key] = pole_vvody  # зберіг кожне поле у словнику щоб не втратити доступ до поля, це словник з ключем - назва поля  а значен - сам віджет QLineEdit
-                   
+                          
         self.btn = QPushButton("Внести")
+        self.btn.setFixedWidth(120)
         self.btn.clicked.connect(self.obrobka_press_btn) # ------------------------------ СИГНАЛ --------------------------------------------
         self.text_forma_vvody.addRow("", self.btn)  # добавляємо невелику кнопку  у сітку форми QFormLayout, де "" - робить кнопку невеликою
        
-    def obrobka_press_btn(self):    #  Цей метод викликається кнопкою, отримує дані та пускає їх далі
+    def obrobka_press_btn(self):    #  Цей метод викликається кнопкою автоматично, отримує дані від юзера та пускає їх далі
         users_data = self.receive_users_data_check_empty() # отримує дані які ввів користув після перевірки
-        if users_data is None:   # напр, коли корист не ввів всі поля
+        if users_data is None:   # корист не ввів всі поля
             return    # зупиняємо роботу
-        # ЯКЩО ДАНІ ОК — ПРАЦЮЄМО З НИМИ ТУТ
-        self.data_submitted.emit(users_data)   # активуємо наш сигнал і передаємо словник users_data усім хто на нього підписався
-        
+        self.signal_dict.emit(users_data)   # активуємо наш сигнал і передаємо словник users_data усім хто на нього підписався
         # Очищаємо поля вводу 
         for name, field in self.dict_input.items():
            if isinstance(field, VupadSpusokManager):
               field.vupad_spusok.setCurrentIndex(0) # Скидаємо випадаючий список на найперший елемент (зазвичай це індекс 0)
            elif isinstance(field, CheckBoxManager): 
                field.setChecked(True)                 #  Скидаємо прапорець в True 
+           #elif isinstance(field, QLineEdit) and field.isReadOnly(): # Не очищаємо поле із властив ReadOnly
+            #   continue    
            else:
               field.clear()     # Для звичайних полів QLineEdit просто очищаємо текст
                
@@ -79,22 +80,22 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
         valid_dict = {}
         for name, field in self.dict_input.items(): # отрим дані від корист та фіксуємо пусті поля: де name = Назва точки, field = <PyQt6.QtWidgets.QLineEdit object at 0x000001C5B61477F0>  
             if isinstance(field, VupadSpusokManager): # якщо field належить до класу VupadSpusokManager
-                text_val = field.get_curr_data()  # виклик метод класу VupadSpusokManager який повертає вибране корист значення в випад списку 
-                if isinstance(text_val, list) and text_val:   # Якщо text_val є списком і він не пустий, беремо перший елемент
-                    text_val = text_val[0]   # зі списку ['val'] беремо тільки 'val'
-                if text_val is None:   # text_val типу 'Склад готової продукції'
-                    text_val = ""   # Приводимо до порожнього рядка для уніфікації
+                raw_data = field.get_curr_data()  # виклик метод класу VupadSpusokManager який повертає вибране корист значення в випад списку 
+                if isinstance(raw_data, list) and raw_data:   # Якщо text_val є списком і він не пустий, беремо перший елемент
+                    valid_dict[name] = raw_data   # беремо перший елемент
+                if raw_data is None:   # text_val типу 'Склад готової продукції'
+                    raw_data = ""   # Приводимо до порожнього рядка для уніфікації
             elif isinstance(field, CheckBoxManager): # якщо field належить до класу CheckBoxManager, це клас по роботі із прапорцями
                 # Для чекбокса пустих значень не буває (він або True, або False)
                 valid_dict[name] = field.get_value()  # зверт до методу класу CheckBoxManager щоб дізнатися стан прапорця True/False
                 continue      # Одразу переходимо до наступного віджета, пропускаючи перевірку на порожнечу
             else:     
-                text_val = field.text().strip()     # Звичайне поле QLineEdit
+                raw_data = field.text().strip()     # Звичайне поле QLineEdit
             
-            if not text_val:   # Перевірка на порожнечу для текстових полів та випад списків
+            if not raw_data:   # Перевірка на порожнечу для текстових полів та випад списків
                 list_empty_fields.append(name)  # де empty_fields = ['Опис', "Тип пам'яті"] - це назви тих полів які корист не заповнив
             else:    
-                valid_dict[name] = text_val   # де text_val - це те значення, що корист ввів в поле вводу  
+                valid_dict[name] = raw_data   # де text_val - це те значення, що корист ввів в поле вводу  
         
         if list_empty_fields:   # якщо є пості поля що незаповнив користувач
             QMessageBox.warning(self, "Попередження", "Всі поля мають бути заповнені!") 
@@ -102,7 +103,6 @@ class FormaVvody(QWidget):  # клас по роботі з полем ввод�
         else:  # якщо немає пустих полів
             return valid_dict  #  повертає словн типу  {'Назва точки': 'tocka4', 'Тип точки': ['Роздрібний магазин'], 'Місто': 'Kahar', 'Адреса': 'shemelovska 4', 'Активний?': True}
             
-
     def create_pidkazku_placehold(self, datatype, size):  # Створює підказки для Placeholderiv, тобто в середині поля вводу
         if datatype == 'decimal':   # Це блок підказок в полі вводу 
             max_digits = size - 2
@@ -173,7 +173,7 @@ class InputValidator:  # Клас-помічник, використ його у
             widget.setValidator(validator)   #  Прив’язує валідатор до віджета, після чого користувач просто не зможе натиснути клавішу, яка порушує правило. 
 
 class VupadSpusokManager(QWidget): # Створює наповнює випад список із пошуком і вводом, а наслідує пусту панель QWidget, бо це складний міні-інтерфейс
-    changed = pyqtSignal(object) 
+    signal_select_val = pyqtSignal(object)  # Створюємо зміну-сигнал, до якого ззовні підключемо інші функції, і потім цей сигнал передає це значення 
     def __init__(self, peredana_func, default_item, parent=None):
         super().__init__(parent)     # Ініціалізує базовий клас QWidget
         self.peredana_func = peredana_func      # Зберігаємо посилання на функцію як зміну
@@ -186,11 +186,11 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         self._on_click_defaulttext()  # метод спрацьовує при клікані курсором на дефолтне значення в випад списку
         self.add_items()      # виклик методу який заповнює/загружає список даними
         # Як тільки юзер клацне на інший рядок в вип_списку, негайно виконуй код у _handle_change
-        self.vupad_spusok.currentIndexChanged.connect(self._handle_change)   # Підключаємо сигнал ПІСЛЯ першого заповнення
+        self.vupad_spusok.currentIndexChanged.connect(self._handle_change)   # коли корист вибирає інший елемент у вип списку то викон функцію
 
     def _handle_change(self):  # внутрішній «обробник», який спрацьовує, коли ти вибираєш новий пункт у випадаючому списку
         data = self.vupad_spusok.currentData()  # data типу: [3, 'Процесори', 'cpu'] або [5, 'AMD Ryzen']
-        self.changed.emit(data) # Сигнал emit передає дані в той  метод який підключ до сигналу changed десь в зовн коді
+        self.signal_select_val.emit(data) # Сигнал signal_select_val передає дані в той  метод який підключ до сигналу changed десь в зовн коді
 
     def _on_click_defaulttext(self):  #  Перехоплює клік мишкою по дефолтному тексту у випад списку та очищає текст для вводу
         line_edit = self.vupad_spusok.lineEdit() # дістаєм прихов текстове поле всередині випад списку
@@ -200,25 +200,31 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
                     super().__init__(manager) # виклик конструктор класу QObject і передаєм туди manager 
                     self.manager = manager
                     self.le = le   # le -  посилання на те саме текстове поле line_edit
-
+                # Цей метод не виклик явно, його запускає Qt коли корист зробив якусь дію над випад. списком.  
                 def eventFilter(self, obj, event):    # Відловлюємо саме клік мишкою (MouseButtonPress) або фокус
                     if event.type() == QEvent.Type.MouseButtonPress or event.type() == QEvent.Type.FocusIn:  # поле отримало фокус 
-                       QTimer.singleShot(30, self.delayed_clear) # після 30 мс виклик метод delayed_clear
+                       if self.manager.vupad_spusok.currentIndex() != -1:  # якщо корист у випад списку вибрав щось і воно не пусте
+                          QTimer.singleShot(30, self.delayed_clear) # після 30 мс виклик метод delayed_clear
                     return super().eventFilter(obj, event) # передаємо подію далі батькові QObject у його внутр метод внутрішній метод eventFilter
 
                 def delayed_clear(self):   # очищає старий текст із комірки і відкрив порожній список для пошуку
+                    if not self.le.hasFocus():   # Перевірка: чи користувач досі тримає фокус на цьому полі
+                        return
                     self.manager.vupad_spusok.blockSignals(True) # Блокуємо сигнали, щоб зміна індексу на -1 не викликала передчасно каскад методів
-                    self.manager.vupad_spusok.setCurrentIndex(-1)  # скидаємо індекс в -1 (нічого не обрано)
-                    self.le.clear()   # Очищаємо текст повністю
-                    self.manager.vupad_spusok.showPopup()  #  Відкриваємо випадаючий список — тепер він відкриється ПУСТИМ
-            
+                    try:
+                       self.manager.vupad_spusok.setCurrentIndex(-1)  # скидаємо індекс в -1 (нічого не обрано, пустий рядок)
+                       self.le.clear()   # Очищаємо текст повністю
+                       self.manager.vupad_spusok.showPopup()  #  Відкриваємо випадаючий список — тепер він відкриється ПУСТИМ
+                    finally:
+                       self.manager.vupad_spusok.blockSignals(False)
+
             self._focus_filter = DetectClicking(self, line_edit) # створ екземп класу і перед йому посил на line_edit
             line_edit.installEventFilter(self._focus_filter) # коли відбув подія із line_edit, то відсил цю подію до _focus_filter на перевірку
 
     def add_items(self, *args):   # ПОЛІМОРФІЗМ працює як із статичними даними в памяті так і з SQL, добавл до випад списку дефолтний і нові значення
         self.vupad_spusok.blockSignals(True)  # виключ сигнал currentIndexChanged, щоб при clear або заповн не запускати інші функц які реагують
         self.vupad_spusok.clear()   # очистка перед завантаженням нових зн
-        self.vupad_spusok.addItem(self.default_item, None) 
+        self.vupad_spusok.addItem(self.default_item, None)  # додаємо дефолт текст до початку із прихов даними - None
         if self.peredana_func is None:  # Якщо функція не передана то -
             self.vupad_spusok.blockSignals(False)  # роєзблуковуємо віджет
             return    #  виходимо із методу
@@ -243,7 +249,7 @@ class VupadSpusokManager(QWidget): # Створює наповнює випад 
         finally:
             self.vupad_spusok.blockSignals(False)  # знову вмикаємо сигнали віджета, щоб він знову став "живим" для користувача
 
-    def get_curr_data(self): # вертає список типу: [11, 'HDD'], тобто те шо користув сам обрав в вип_списку і id саме із бази
+    def get_curr_data(self): # вертає список типу: [11, 'HDD'], те шо користув сам обрав в вип_списку і прихований id саме із бази
         result = self.vupad_spusok.currentData()
         return result  
 
@@ -264,6 +270,10 @@ class TablManager(QTableWidget):  # Клас по роботі із таблиц
     def create_komirka(self, value):  # метод по створені та форматуванні комірки для таблиці відображення даних на екрані
        komirka = QTableWidgetItem()  #  Створ порожню (елемент) комірку для таблиці
        komirka.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)  # заборон редагування, дозволяємо лише: активність (Enabled) та виділення (Selectable) 
+       if isinstance(value, (list, tuple)) and len(value) == 2:
+           hidden_id, disp_text = value  # Розпаковуємо ID та текст для екрана
+           komirka.setData(Qt.ItemDataRole.UserRole, hidden_id) # ховаємо ID в невидиме місце клітинки де і текст запихаємо
+           value = disp_text 
        if isinstance(value, (int, float, Decimal)):        # чи є значення числом 
            dec_val = float(value) if isinstance(value, Decimal) else value  # Перетвор Decimal в Float
            komirka.setData(Qt.ItemDataRole.EditRole, dec_val)  #  записуємо дані "всередину" комірки так, щоб таблиця розуміла їхній справжній тип (число, дата тощо), а не просто бачила в них набір символів

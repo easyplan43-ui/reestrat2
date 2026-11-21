@@ -35,12 +35,13 @@ class BasicSklad(QMainWindow):       #      Батьківський клас п
         self.ekzemp_table            = TablManager(sortyvatu = True)   # Створ екземп класу по роботі із таблицею відображення інфи на екрані
       
         # ------------------------------------------------------- СИГНАЛИ --------------------------------------------------------------
-        self.ekzemp_vupad_spusok.changed.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире елем у випад_списку, беремо дані які для нас дістає сигнал changed і передаємо їх в prepare_form_sub_vupad_spus
-        self.ekzemp_sub_vupad_spusok.changed.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю    
+        self.ekzemp_vupad_spusok.signal_select_val.connect(self.prepare_form_sub_vupad_spus)  # Коли корист вибире елем у випад_списку, беремо дані які для нас дістає сигнал signal_select_val і передаємо їх в prepare_form_sub_vupad_spus
+        self.ekzemp_sub_vupad_spusok.signal_select_val.connect(self.prepare_form_tabl_forma_vvody)  # Коли корист вибирає якийсь елем у sub списку - виводимо таблицю    
                
     def _get_spusok_stovp_transl(self, tablename):  # //tested// для конкр таблиці дістає список стовпців, які треба перек на україн і вивести в таблицю на екран
         if tablename is None:
             list_kort= self.pered_func_stovp() # дочір класи перед різні назви методів, щоб витягнути різні стовпці із бд типу: [('Артикул', 'artukyl', 'varchar', 25), ('Назва товару', 'nazva_tov', 'nvarchar', 50),
+            print(list_kort)
         else:
             list_kort = self.pered_func_stovp(tablename) # дочір класи перед різні назви методів, щоб витягнути різні стовпці із бд [("Тип пам'яті", 'mem_type', 'varchar', 50), ("Обє'м Гб", 'capacity', 'int', 10),
         return DictManager.form_dictionary(list_kort)  # зверт до статичного методу, щоб отрим словник зі списку кортежів
@@ -245,7 +246,7 @@ class InsertTovar(BasicSklad):     #----------------  дочір клас Реа
 
         # -------------------------------------------------------- Сигнали -------------------------------------------------------------------------------
          # метод get_userdata_from_form є підписаний на сигнал data_submitted із класу FormaVvody 
-        self.ekzemp_forma_vvody.data_submitted.connect(self.get_userdata_from_form)  #  Коли у вікні форми вводу відбуд подія data_submitted, то запуск метод get_userdata_from_form
+        self.ekzemp_forma_vvody.signal_dict.connect(self.get_userdata_from_form)  #  Коли у вікні форми вводу відбуд подія signal_dict, то запуск метод get_userdata_from_form
 
     #   Цей метод є визначен в базовому класі, а тут ми вже його доповнюємо        
     def prepare_form_tabl_forma_vvody(self):   #  Підготовка до формув форми вводу
